@@ -371,6 +371,16 @@ export class GameEngine {
         case 'KeyC':
           this.cycleCameraMode();
           break;
+        case 'KeyF':
+          const isFlying = gameState.adminToggleFlyMode();
+          soundEngine.playUpgrade();
+          if (this.uiCallbacks.onNotification) {
+            this.uiCallbacks.onNotification(
+              isFlying ? '🦅 ADMIN FLIGHT MODE ON! (Space to fly UP, Shift to fly DOWN)' : '🛬 Admin Flight Mode OFF',
+              'info'
+            );
+          }
+          break;
       }
     };
 
@@ -528,8 +538,8 @@ export class GameEngine {
       this.player.position.z += worldMoveDir.z * currentSpeed * dt;
     }
 
-    // Restrict lateral movement to track borders
-    const maxTrackX = 18;
+    // Restrict lateral movement to track borders (wider if flying)
+    const maxTrackX = gameState.admin.flyMode ? 40 : 18;
     this.player.position.x = Math.max(-maxTrackX, Math.min(maxTrackX, this.player.position.x));
     // Restrict back of base
     this.player.position.z = Math.max(-85, this.player.position.z);
@@ -553,17 +563,37 @@ export class GameEngine {
       }
     }
 
-    // Gravity and Jumping
-    const gravity = -32;
-    this.playerVelocity.y += gravity * dt;
-    this.player.position.y += this.playerVelocity.y * dt;
-
-    if (this.player.position.y <= targetGroundY) {
-      this.player.position.y = targetGroundY;
-      this.playerVelocity.y = 0;
-      this.isGrounded = true;
-    } else {
+    // Admin Flight Mode Physics vs Standard Gravity
+    if (gameState.admin && gameState.admin.flyMode) {
       this.isGrounded = false;
+      const flySpeed = currentSpeed * 0.9;
+      if (this.keys.jump) {
+        this.player.position.y += flySpeed * dt;
+      }
+      if (this.keys.sprint) {
+        this.player.position.y = Math.max(targetGroundY, this.player.position.y - flySpeed * dt);
+      }
+      // Floating hover bob
+      this.player.position.y += Math.sin(Date.now() * 0.005) * 0.02;
+    } else {
+      // Standard Gravity and Jumping
+      const gravity = -32;
+      this.playerVelocity.y += gravity * dt;
+      this.player.position.y += this.playerVelocity.y * dt;
+
+      if (this.player.position.y <= targetGroundY) {
+        this.player.position.y = targetGroundY;
+        this.playerVelocity.y = 0;
+        this.isGrounded = true;
+      } else {
+        this.isGrounded = false;
+      }
+    }
+
+    // Rotate Golden Admin Crown
+    const crown = this.player.getObjectByName('adminCrown');
+    if (crown) {
+      crown.rotation.y += dt * 1.5;
     }
 
     // Dash Timers

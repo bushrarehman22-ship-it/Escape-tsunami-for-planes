@@ -59,6 +59,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const engine = new GameEngine(canvasContainer, uiCallbacks);
   ui = new GameUI(uiContainer, engine);
 
+  // Show Admin Welcome Banner
+  setTimeout(() => {
+    if (ui) {
+      ui.showToast('👑 WELCOME OWNER ADMIN! You have Godmode, Flight (F), and full Admin Commands!', 'success');
+    }
+  }, 800);
+
   // Audio start on first interaction
   const unlockAudio = () => {
     soundEngine.init();

@@ -21,13 +21,13 @@ export class GameUI {
 
     // Simulated Server Leaderboard Pilots
     this.leaderboard = [
-      { name: 'AceCaptain_99', rebirths: 7, money: 4800000000, title: 'Galactic Sovereign' },
-      { name: 'SkyPhantom_X', rebirths: 6, money: 950000000, title: 'Celestial Sky God' },
-      { name: 'VortexPilot21', rebirths: 5, money: 180000000, title: 'Orbital Commander' },
-      { name: 'StealthFalcon', rebirths: 4, money: 32000000, title: 'Stealth Phantom' },
-      { name: 'Mach10_Rider', rebirths: 3, money: 5400000, title: 'Supersonic Ace' },
-      { name: 'PropellerKing', rebirths: 2, money: 850000, title: 'Jet Aviator' },
-      { name: 'RunwayRunner01', rebirths: 1, money: 95000, title: 'Propeller Pilot' }
+      { name: '👑 [OWNER / ADMIN] You', rebirths: 7, money: 9999999999, title: 'Creator & Galactic Sovereign', isSelf: true },
+      { name: 'AceCaptain_99', rebirths: 6, money: 4800000000, title: 'Celestial Sky God' },
+      { name: 'SkyPhantom_X', rebirths: 5, money: 950000000, title: 'Orbital Commander' },
+      { name: 'VortexPilot21', rebirths: 4, money: 180000000, title: 'Stealth Phantom' },
+      { name: 'StealthFalcon', rebirths: 3, money: 32000000, title: 'Supersonic Ace' },
+      { name: 'Mach10_Rider', rebirths: 2, money: 5400000, title: 'Jet Aviator' },
+      { name: 'PropellerKing', rebirths: 1, money: 850000, title: 'Propeller Pilot' }
     ];
 
     this.createUIElements();
@@ -39,8 +39,17 @@ export class GameUI {
       <div id="game-hud" class="hud-overlay select-none pointer-events-none">
         <!-- Top Stats Bar -->
         <header class="top-bar pointer-events-auto flex items-center justify-between px-4 py-3 gap-2">
-          <!-- Left: Money & Income -->
-          <div class="flex items-center gap-3">
+          <!-- Left: Money & Income & Admin Badge -->
+          <div class="flex items-center gap-2 sm:gap-3 flex-wrap">
+            <!-- Owner Admin Pill -->
+            <button id="hud-admin-badge" class="stat-pill bg-gradient-to-r from-amber-500/30 via-red-600/30 to-purple-600/30 border-amber-400/80 shadow-amber-500/20 hover:scale-105 cursor-pointer transition-transform">
+              <span class="stat-icon text-amber-300 animate-bounce">👑</span>
+              <div class="flex flex-col text-left">
+                <span class="text-[10px] text-amber-300 font-black tracking-wider uppercase">Status</span>
+                <span class="text-xs font-black text-white tracking-wide">OWNER ADMIN</span>
+              </div>
+            </button>
+
             <div class="stat-pill money-pill">
               <span class="stat-icon text-yellow-400">💵</span>
               <div class="flex flex-col">
@@ -133,8 +142,18 @@ export class GameUI {
 
         <!-- Cargo Tow Capacity HUD & Mini-Radar (Bottom Left / Right) -->
         <div class="hud-bottom-info flex items-end justify-between px-4 pb-4">
-          <!-- Left: Cargo Status -->
+          <!-- Left: Cargo Status & Admin Quick Bar -->
           <div class="flex flex-col gap-2 pointer-events-auto">
+            <!-- Admin Quick Power Bar -->
+            <div class="admin-quick-bar flex items-center gap-1.5 p-1.5 rounded-xl bg-slate-950/90 border border-amber-500/60 shadow-xl backdrop-blur-md">
+              <span class="text-xs px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-black uppercase tracking-wider">Admin Quick:</span>
+              <button id="quick-godmode" class="px-2 py-1 rounded text-[11px] font-bold bg-emerald-700 hover:bg-emerald-600 text-white cursor-pointer" title="Toggle Godmode">🛡️ God</button>
+              <button id="quick-fly" class="px-2 py-1 rounded text-[11px] font-bold bg-sky-700 hover:bg-sky-600 text-white cursor-pointer" title="Toggle Flight Mode (F)">🦅 Fly (F)</button>
+              <button id="quick-speed" class="px-2 py-1 rounded text-[11px] font-bold bg-amber-700 hover:bg-amber-600 text-white cursor-pointer" title="Toggle Super Speed (85m/s)">⚡ Speed</button>
+              <button id="quick-cash" class="px-2 py-1 rounded text-[11px] font-bold bg-purple-700 hover:bg-purple-600 text-white cursor-pointer" title="Add $10M Cash">+ $10M</button>
+              <button id="quick-wave" class="px-2 py-1 rounded text-[11px] font-bold bg-red-700 hover:bg-red-600 text-white cursor-pointer" title="Spawn Tsunami">🌊 Wave</button>
+            </div>
+
             <div class="cargo-pill flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-900/90 border border-slate-700 shadow-xl backdrop-blur-md">
               <span class="text-lg">🧲</span>
               <div class="flex flex-col">
@@ -206,6 +225,65 @@ export class GameUI {
   }
 
   setupBindings() {
+    // Admin Quick Bar & Owner Pill
+    const ownerPill = document.getElementById('hud-admin-badge');
+    if (ownerPill) {
+      ownerPill.addEventListener('click', () => {
+        soundEngine.playClick();
+        this.openAdminModal();
+      });
+    }
+
+    const qGod = document.getElementById('quick-godmode');
+    if (qGod) {
+      qGod.addEventListener('click', () => {
+        const active = gameState.adminToggleGodmode();
+        soundEngine.playClick();
+        qGod.textContent = active ? '🛡️ God: ON' : '🛡️ God: OFF';
+        qGod.className = `px-2 py-1 rounded text-[11px] font-bold cursor-pointer ${active ? 'bg-emerald-600 text-white' : 'bg-slate-700 text-slate-400'}`;
+        this.showToast(`🛡️ Godmode: ${active ? 'ENABLED (Wave Immune)' : 'DISABLED'}`, active ? 'success' : 'info');
+      });
+    }
+
+    const qFly = document.getElementById('quick-fly');
+    if (qFly) {
+      qFly.addEventListener('click', () => {
+        const active = gameState.adminToggleFlyMode();
+        soundEngine.playUpgrade();
+        qFly.textContent = active ? '🦅 Fly: ON' : '🦅 Fly (F)';
+        qFly.className = `px-2 py-1 rounded text-[11px] font-bold cursor-pointer ${active ? 'bg-sky-500 text-white' : 'bg-sky-700 text-white'}`;
+        this.showToast(active ? '🦅 Admin Flight Active! (Space = UP, Shift = DOWN)' : '🛬 Flight Off', 'info');
+      });
+    }
+
+    const qSpeed = document.getElementById('quick-speed');
+    if (qSpeed) {
+      qSpeed.addEventListener('click', () => {
+        const active = gameState.adminToggleSuperSpeed();
+        soundEngine.playClick();
+        qSpeed.textContent = active ? '⚡ Speed: 85' : '⚡ Speed';
+        qSpeed.className = `px-2 py-1 rounded text-[11px] font-bold cursor-pointer ${active ? 'bg-amber-500 text-slate-950 font-black' : 'bg-amber-700 text-white'}`;
+        this.showToast(`⚡ Super Speed: ${active ? 'ON (85 m/s)' : 'OFF'}`, active ? 'success' : 'info');
+      });
+    }
+
+    const qCash = document.getElementById('quick-cash');
+    if (qCash) {
+      qCash.addEventListener('click', () => {
+        gameState.adminAddCash(10000000);
+        soundEngine.playCash();
+        this.showToast('💵 +$10,000,000 Admin Cash Added!', 'success');
+      });
+    }
+
+    const qWave = document.getElementById('quick-wave');
+    if (qWave) {
+      qWave.addEventListener('click', () => {
+        this.engine.triggerTsunami();
+        this.showToast('🌊 Spawned Incoming Tsunami!', 'danger');
+      });
+    }
+
     // Camera View Switcher
     const camBtn = document.getElementById('btn-switch-camera');
     if (camBtn) {
@@ -1028,16 +1106,9 @@ export class GameUI {
   // 5. Leaderboards Modal
   openLeaderboardModal() {
     const sorted = [...this.leaderboard];
-    // Insert current player
-    const playerEntry = {
-      name: 'You (Ace Pilot)',
-      rebirths: gameState.rebirths,
-      money: gameState.stats.totalMoneyEarned,
-      title: gameState.getRebirthTier().title,
-      isSelf: true
-    };
-    sorted.push(playerEntry);
-    sorted.sort((a, b) => b.rebirths - a.rebirths || b.money - a.money);
+    // Update player stats
+    sorted[0].rebirths = Math.max(gameState.rebirths, 7);
+    sorted[0].money = Math.max(gameState.money, 9999999999);
 
     let rows = '';
     sorted.forEach((pilot, rank) => {

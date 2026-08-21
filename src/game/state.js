@@ -34,9 +34,12 @@ class GameState {
       highGraphics: true
     };
     this.admin = {
-      godmode: false,
-      infiniteSprint: false,
-      superSpeed: false
+      isAdmin: true,
+      role: 'Owner / Creator Admin',
+      godmode: true, // Godmode active for Admin
+      infiniteSprint: true,
+      superSpeed: false,
+      flyMode: false
     };
 
     this.listeners = new Set();
@@ -166,6 +169,12 @@ class GameState {
     }
     this.save();
     this.notify();
+  }
+
+  adminToggleFlyMode() {
+    this.admin.flyMode = !this.admin.flyMode;
+    this.notify();
+    return this.admin.flyMode;
   }
 
   adminToggleGodmode() {

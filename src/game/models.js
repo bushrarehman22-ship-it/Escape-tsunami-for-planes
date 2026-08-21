@@ -578,9 +578,9 @@ export function createPlaneMesh(planeDef, showBadge = true) {
 }
 
 // -------------------------------------------------------------
-// 2. Roblox Pilot Character Avatar Generator
+// 2. Roblox Pilot Character Avatar Generator (With Admin Crown)
 // -------------------------------------------------------------
-export function createPilotCharacter(rebirthRank = 0) {
+export function createPilotCharacter(rebirthRank = 0, isAdmin = true) {
   const root = new THREE.Group();
   root.name = 'player';
 
@@ -590,6 +590,7 @@ export function createPilotCharacter(rebirthRank = 0) {
   const trimMat = getMaterial('#38bdf8', { roughness: 0.3, emissive: '#0284c7', emissiveIntensity: 0.4 });
   const helmetMat = getMaterial('#f97316', { roughness: 0.3 }); // Orange flight helmet
   const visorMat = getMaterial('#0284c7', { roughness: 0.1, metalness: 0.9, transparent: true, opacity: 0.85 });
+  const goldMat = getMaterial('#fbbf24', { metalness: 0.9, roughness: 0.2, emissive: '#f59e0b', emissiveIntensity: 1.2 });
 
   // Body Parts Group
   const torso = new THREE.Mesh(new THREE.BoxGeometry(0.9, 1.1, 0.5), suitMat);
@@ -609,6 +610,40 @@ export function createPilotCharacter(rebirthRank = 0) {
   const visor = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.28, 0.1), visorMat);
   visor.position.set(0, 0.05, 0.35);
   headGroup.add(head, helmet, visor);
+
+  // Floating Golden 3D Admin Crown
+  const crownGroup = new THREE.Group();
+  crownGroup.name = 'adminCrown';
+  crownGroup.position.set(0, 0.65, 0);
+
+  const crownBase = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.35, 0.18, 12, 1, true), goldMat);
+  crownGroup.add(crownBase);
+
+  // 5 Crown Points / Jewels
+  for (let i = 0; i < 5; i++) {
+    const angle = (i / 5) * Math.PI * 2;
+    const px = Math.cos(angle) * 0.36;
+    const pz = Math.sin(angle) * 0.36;
+    const spike = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.25, 6), goldMat);
+    spike.position.set(px, 0.18, pz);
+    crownGroup.add(spike);
+
+    // Ruby / Emerald jewel on crown spike
+    const gem = new THREE.Mesh(
+      new THREE.SphereGeometry(0.045, 6, 6),
+      getMaterial(i % 2 === 0 ? '#ef4444' : '#10b981', { emissive: i % 2 === 0 ? '#dc2626' : '#059669', emissiveIntensity: 2.0 })
+    );
+    gem.position.set(px, 0.3, pz);
+    crownGroup.add(gem);
+  }
+
+  // Admin glowing halo ring above crown
+  const halo = new THREE.Mesh(new THREE.TorusGeometry(0.48, 0.04, 8, 24), getMaterial('#fbbf24', { emissive: '#fbbf24', emissiveIntensity: 2.0 }));
+  halo.rotateX(Math.PI / 2);
+  halo.position.set(0, 0.42, 0);
+  crownGroup.add(halo);
+
+  headGroup.add(crownGroup);
   torso.add(headGroup);
 
   // Jetpack / Tow Hitch on Back
