@@ -3,9 +3,14 @@ import { GameUI } from './game/ui.js';
 import { soundEngine } from './game/audio.js';
 import confetti from 'canvas-confetti';
 
-document.addEventListener('DOMContentLoaded', () => {
+function initGame() {
   const canvasContainer = document.getElementById('canvas-container');
   const uiContainer = document.getElementById('ui-container');
+
+  if (!canvasContainer || !uiContainer) {
+    console.error('Canvas or UI container not found in DOM!');
+    return;
+  }
 
   let ui = null;
 
@@ -74,7 +79,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (ui) {
       ui.showToast('👑 WELCOME OWNER ADMIN! You have Godmode, Flight (F), and full Admin Commands!', 'success');
     }
-  }, 800);
+  }, 600);
 
   // Audio start on first interaction
   const unlockAudio = () => {
@@ -89,4 +94,11 @@ document.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('click', unlockAudio);
   window.addEventListener('keydown', unlockAudio);
   window.addEventListener('touchstart', unlockAudio);
-});
+}
+
+// Run immediately if DOM ready, or wait for DOMContentLoaded
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initGame);
+} else {
+  initGame();
+}
