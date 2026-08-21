@@ -1,4 +1,4 @@
-import { PLANES_DATABASE, REBIRTH_TIERS, UPGRADES } from './constants.js';
+import { PLANES_DATABASE, REBIRTH_TIERS, UPGRADES, SPEED_UPGRADES } from './constants.js';
 
 const STORAGE_KEY = 'ESCAPE_TSUNAMI_PLANES_SAVE_V1';
 
@@ -14,6 +14,12 @@ class GameState {
       planeMagnet: 1,
       dashBoost: 1,
       waveRadar: 1
+    };
+    this.speedUpgrades = {
+      sprintVelocity: 1,
+      dashCooldown: 1,
+      multiJump: 1,
+      trailParticle: 1
     };
     this.hangarPlanes = []; // Array of { id, planeDef, level, golden }
     this.carriedPlanes = []; // Array of planeDef
@@ -112,6 +118,61 @@ class GameState {
     return false;
   }
 
+  // Speed Shop Upgrades
+  getSpeedUpgradeValue(key) {
+    const def = SPEED_UPGRADES[key];
+    if (!def) return 1;
+    const lvl = this.speedUpgrades[key] || 1;
+    return def.getValue(lvl);
+  }
+
+  getSpeedUpgradeCost(key) {
+    const def = SPEED_UPGRADES[key];
+    if (!def) return Infinity;
+    const lvl = this.speedUpgrades[key] || 1;
+    if (lvl >= def.maxLevel) return Infinity;
+    return Math.floor(def.baseCost * Math.pow(def.costMultiplier, lvl - 1));
+  }
+
+  buySpeedUpgrade(key) {
+    const cost = this.getSpeedUpgradeCost(key);
+    const def = SPEED_UPGRADES[key];
+    if (!def) return false;
+    const currentLvl = this.speedUpgrades[key] || 1;
+    if (currentLvl >= def.maxLevel) return false;
+
+    if (this.money >= cost) {
+      this.money -= cost;
+      this.speedUpgrades[key] = currentLvl + 1;
+      this.save();
+      this.notify();
+      return true;
+    }
+    return false;
+  }
+
+  // Airplane Dealership Purchase
+  buyPlane(planeDef) {
+    const price = planeDef.shopPrice || 1000;
+    if (this.money < price) return false;
+
+    this.money -= price;
+    this.unlockedPlaneIds.add(planeDef.id);
+
+    // If hangar has room, place it directly
+    const maxSlots = this.getMaxHangarSlots();
+    if (this.hangarPlanes.length < maxSlots) {
+      this.hangarPlanes.push({ ...planeDef, level: 1, golden: false });
+    } else {
+      // Put in carried cargo so player can deposit or swap
+      this.carriedPlanes.push(planeDef);
+    }
+
+    this.save();
+    this.notify();
+    return true;
+  }
+
   getMaxHangarSlots() {
     return this.getUpgradeValue('hangarSlots');
   }
@@ -121,10 +182,11 @@ class GameState {
   }
 
   getPlayerSpeed() {
-    if (this.admin.superSpeed) return 85.0;
+    if (this.admin && this.admin.superSpeed) return 85.0;
     const baseSpeed = this.getUpgradeValue('speed');
+    const speedShopBonus = (this.getSpeedUpgradeValue('sprintVelocity') - 14);
     const rebirthBonus = this.getRebirthTier().bonusSpeed || 0;
-    return baseSpeed + rebirthBonus;
+    return baseSpeed + speedShopBonus + rebirthBonus;
   }
 
   // Admin Commands
@@ -400,6 +462,7 @@ class GameState {
         rebirths: this.rebirths,
         rebirthTokens: this.rebirthTokens,
         upgrades: this.upgrades,
+        speedUpgrades: this.speedUpgrades,
         hangarPlanes: this.hangarPlanes,
         unlockedPlaneIds: Array.from(this.unlockedPlaneIds),
         stats: this.stats,
@@ -420,6 +483,7 @@ class GameState {
       if (data.rebirths !== undefined) this.rebirths = data.rebirths;
       if (data.rebirthTokens !== undefined) this.rebirthTokens = data.rebirthTokens;
       if (data.upgrades) this.upgrades = { ...this.upgrades, ...data.upgrades };
+      if (data.speedUpgrades) this.speedUpgrades = { ...this.speedUpgrades, ...data.speedUpgrades };
       if (Array.isArray(data.hangarPlanes)) this.hangarPlanes = data.hangarPlanes;
       if (Array.isArray(data.unlockedPlaneIds)) this.unlockedPlaneIds = new Set(data.unlockedPlaneIds);
       if (data.stats) this.stats = { ...this.stats, ...data.stats };

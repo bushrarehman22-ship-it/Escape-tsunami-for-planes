@@ -153,8 +153,8 @@ export class GameEngine {
   }
 
   buildWorld() {
-    // 1. Airport Base
-    this.airportBase = createAirportBase(24);
+    // 1. Massive Airport Base with 36 Hangar Pads
+    this.airportBase = createAirportBase(36);
     this.scene.add(this.airportBase);
 
     // 2. Runway Track (Total 2600m)
@@ -902,7 +902,7 @@ export class GameEngine {
       }
     }
 
-    // 2. Rebirth Altar (Z ~ -72)
+    // 2. Rebirth Altar (Z ~ -105)
     if (playerPos.distanceTo(u.rebirthAltarPosition) < u.rebirthRadius) {
       if (this.uiCallbacks.onNearRebirthAltar) {
         this.uiCallbacks.onNearRebirthAltar(true);
@@ -913,14 +913,28 @@ export class GameEngine {
       }
     }
 
-    // 3. Upgrades Shop Booth (X ~ 22, Z ~ -35)
-    if (playerPos.distanceTo(u.shopPosition) < u.shopRadius) {
+    // 3. Upgrades Shop Booth (X ~ 16, Z ~ -15)
+    if (playerPos.distanceTo(u.shopPosition) < 5.0) {
       if (this.uiCallbacks.onNearShop) {
         this.uiCallbacks.onNearShop(true);
       }
     } else {
       if (this.uiCallbacks.onNearShop) {
         this.uiCallbacks.onNearShop(false);
+      }
+    }
+
+    // 4. Airplanes Dealership (X ~ -16, Z ~ -35)
+    if (u.airplaneShopPosition && playerPos.distanceTo(u.airplaneShopPosition) < 5.5) {
+      if (this.uiCallbacks.onNearPlaneShop) {
+        this.uiCallbacks.onNearPlaneShop(true);
+      }
+    }
+
+    // 5. Speed & Thrusters Workshop (X ~ 16, Z ~ -35)
+    if (u.speedShopPosition && playerPos.distanceTo(u.speedShopPosition) < 5.5) {
+      if (this.uiCallbacks.onNearSpeedShop) {
+        this.uiCallbacks.onNearSpeedShop(true);
       }
     }
   }
@@ -1036,8 +1050,8 @@ export class GameEngine {
       this.camera.position.lerp(desiredPos, Math.min(1.0, dt * 14));
       this.camera.lookAt(lookTarget);
     } else if (this.cameraMode === 'tower') {
-      // 🏢 AIRPORT CONTROL TOWER CAM
-      const towerPos = new THREE.Vector3(-26, 23.5, -50);
+      // 🏢 AIRPORT CONTROL TOWER CAM (Atop the Megabase Tower)
+      const towerPos = new THREE.Vector3(-36, 28.5, -75);
       this.camera.position.lerp(towerPos, Math.min(1.0, dt * 10));
       const lookTarget = this.activeWave
         ? new THREE.Vector3(0, 8, this.activeWave.z)
@@ -1070,9 +1084,9 @@ export class GameEngine {
       this.sunLight.target = this.player;
     }
 
-    // Rotate Control Tower Radar
-    if (this.airportBase && this.airportBase.userData.radarDish) {
-      this.airportBase.userData.radarDish.rotation.y += dt * 2.0;
+    // Rotate Control Tower Radar Array
+    if (this.airportBase && this.airportBase.userData.radarGroup) {
+      this.airportBase.userData.radarGroup.rotation.y += dt * 2.5;
     }
   }
 

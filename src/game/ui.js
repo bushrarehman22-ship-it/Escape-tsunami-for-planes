@@ -87,11 +87,21 @@ export class GameUI {
           </div>
 
           <!-- Right: Action Menu Buttons -->
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap">
             <!-- Camera Mode Switcher Pill -->
             <button id="btn-switch-camera" class="menu-btn bg-cyan-700 hover:bg-cyan-600 text-white shadow-cyan-500/20" title="Switch Camera View (HotKey: C)">
               <span id="hud-cam-icon">📹</span>
               <span id="hud-cam-label" class="font-bold text-xs uppercase">Cam: Player (C)</span>
+            </button>
+
+            <!-- Airplanes Dealership Shop Button -->
+            <button id="btn-menu-planesshop" class="menu-btn bg-sky-600 hover:bg-sky-500 text-white shadow-sky-500/20" title="Airplanes Dealership">
+              <span>✈️</span> <span class="hidden sm:inline font-bold text-xs uppercase">Planes Shop</span>
+            </button>
+
+            <!-- Speed & Thrusters Shop Button -->
+            <button id="btn-menu-speedshop" class="menu-btn bg-amber-600 hover:bg-amber-500 text-white shadow-amber-500/20" title="Speed & Thruster Workshop">
+              <span>⚡</span> <span class="hidden sm:inline font-bold text-xs uppercase">Speed Shop</span>
             </button>
 
             <!-- Admin Command Console Button -->
@@ -99,14 +109,14 @@ export class GameUI {
               <span>⚡</span> <span class="font-black text-xs uppercase tracking-wider">Admin</span>
             </button>
 
-            <button id="btn-menu-shop" class="menu-btn bg-blue-600 hover:bg-blue-500 text-white shadow-blue-500/20" title="Upgrades Shop">
+            <button id="btn-menu-shop" class="menu-btn bg-blue-600 hover:bg-blue-500 text-white shadow-blue-500/20" title="Base Upgrades">
               <span>🛒</span> <span class="hidden sm:inline font-bold text-xs uppercase">Upgrades</span>
             </button>
-            <button id="btn-menu-crates" class="menu-btn bg-amber-600 hover:bg-amber-500 text-white shadow-amber-500/20" title="Lucky Airdrop Crates">
+            <button id="btn-menu-crates" class="menu-btn bg-yellow-600 hover:bg-yellow-500 text-white shadow-yellow-500/20" title="Lucky Airdrop Crates">
               <span>📦</span> <span class="hidden sm:inline font-bold text-xs uppercase">Airdrops</span>
             </button>
             <button id="btn-menu-codex" class="menu-btn bg-purple-600 hover:bg-purple-500 text-white shadow-purple-500/20" title="Plane Hangar Codex">
-              <span>📖</span> <span class="hidden sm:inline font-bold text-xs uppercase">Planes</span>
+              <span>📖</span> <span class="hidden sm:inline font-bold text-xs uppercase">Codex</span>
             </button>
             <button id="btn-menu-leaderboard" class="menu-btn bg-slate-700 hover:bg-slate-600 text-white" title="Leaderboard">
               <span>🏆</span>
@@ -281,6 +291,24 @@ export class GameUI {
       qWave.addEventListener('click', () => {
         this.engine.triggerTsunami();
         this.showToast('🌊 Spawned Incoming Tsunami!', 'danger');
+      });
+    }
+
+    // Airplanes Dealership Shop
+    const planesShopBtn = document.getElementById('btn-menu-planesshop');
+    if (planesShopBtn) {
+      planesShopBtn.addEventListener('click', () => {
+        soundEngine.playClick();
+        this.openPlaneShopModal();
+      });
+    }
+
+    // Speed & Thrusters Shop
+    const speedShopBtn = document.getElementById('btn-menu-speedshop');
+    if (speedShopBtn) {
+      speedShopBtn.addEventListener('click', () => {
+        soundEngine.playClick();
+        this.openSpeedShopModal();
       });
     }
 
@@ -648,6 +676,229 @@ export class GameUI {
     soundEngine.playClick();
   }
 
+  // -------------------------------------------------------------
+  // Airplanes Dealership Shop Modal
+  // -------------------------------------------------------------
+  openPlaneShopModal() {
+    let filterCategory = 'all'; // 'all' | 'props' | 'jets' | 'military' | 'space' | 'cosmic'
+
+    const renderPlaneShop = () => {
+      let filteredPlanes = PLANES_DATABASE;
+      if (filterCategory === 'props') {
+        filteredPlanes = PLANES_DATABASE.filter(p => p.zoneId === 1 || p.zoneId === 2);
+      } else if (filterCategory === 'jets') {
+        filteredPlanes = PLANES_DATABASE.filter(p => p.zoneId === 3);
+      } else if (filterCategory === 'military') {
+        filteredPlanes = PLANES_DATABASE.filter(p => p.zoneId === 4);
+      } else if (filterCategory === 'space') {
+        filteredPlanes = PLANES_DATABASE.filter(p => p.zoneId === 5);
+      } else if (filterCategory === 'cosmic') {
+        filteredPlanes = PLANES_DATABASE.filter(p => p.zoneId === 6);
+      }
+
+      let cards = '';
+      filteredPlanes.forEach(plane => {
+        const canAfford = gameState.money >= (plane.shopPrice || 1000);
+        const isOwned = gameState.unlockedPlaneIds.has(plane.id);
+        const rarity = plane.rarity;
+
+        cards += `
+          <div class="p-3.5 rounded-xl border flex flex-col justify-between transition-all bg-slate-900/90 border-slate-700 hover:border-slate-500 shadow-md">
+            <div>
+              <div class="flex items-center justify-between">
+                <span class="text-xs px-2 py-0.5 rounded-full font-bold uppercase tracking-wider" style="background-color: ${rarity.color}22; color: ${rarity.color}; border: 1px solid ${rarity.color}66;">
+                  ${rarity.name}
+                </span>
+                <span class="text-xs font-mono text-slate-400">Zone ${plane.zoneId}</span>
+              </div>
+              <h4 class="font-black text-sm text-white mt-1.5">${plane.name}</h4>
+              <p class="text-[11px] text-slate-400 mt-1 line-clamp-2">${plane.description}</p>
+            </div>
+
+            <div class="mt-3 pt-2 border-t border-slate-800 flex flex-col gap-2">
+              <div class="flex justify-between items-center text-xs">
+                <span class="text-slate-400 font-semibold">Income:</span>
+                <span class="font-black text-emerald-400">+$${plane.baseIncome.toLocaleString()}/s</span>
+              </div>
+
+              <button 
+                data-buy-plane="${plane.id}" 
+                class="btn-buy-plane w-full py-2 rounded-xl font-black text-xs uppercase tracking-wider transition-all cursor-pointer ${
+                  canAfford 
+                    ? 'bg-sky-600 hover:bg-sky-500 text-white shadow-lg shadow-sky-600/30 active:scale-95'
+                    : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
+                }"
+                ${!canAfford ? 'disabled' : ''}
+              >
+                ${canAfford ? `BUY • $${(plane.shopPrice || 1000).toLocaleString()}` : `LOCKED • $${(plane.shopPrice || 1000).toLocaleString()}`}
+              </button>
+            </div>
+          </div>
+        `;
+      });
+
+      return `
+        <div class="modal-header flex items-center justify-between pb-3 border-b border-slate-700">
+          <div class="flex items-center gap-2">
+            <span class="text-2xl">✈️</span>
+            <div>
+              <h2 class="text-lg font-black text-white uppercase tracking-wide">Airport Aircraft Dealership</h2>
+              <div class="text-xs text-slate-400">Buy brand new aircraft delivered straight to your hangar!</div>
+            </div>
+          </div>
+          <button id="modal-close-btn" class="text-slate-400 hover:text-white text-xl p-1 font-mono">✕</button>
+        </div>
+
+        <!-- Filter Tabs -->
+        <div class="flex gap-1.5 my-3 flex-wrap">
+          <button data-filter="all" class="btn-filter-plane px-3 py-1 rounded-lg text-xs font-bold uppercase ${filterCategory === 'all' ? 'bg-sky-600 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}">All (${PLANES_DATABASE.length})</button>
+          <button data-filter="props" class="btn-filter-plane px-3 py-1 rounded-lg text-xs font-bold uppercase ${filterCategory === 'props' ? 'bg-sky-600 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}">Props & Vintage</button>
+          <button data-filter="jets" class="btn-filter-plane px-3 py-1 rounded-lg text-xs font-bold uppercase ${filterCategory === 'jets' ? 'bg-sky-600 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}">Airliners</button>
+          <button data-filter="military" class="btn-filter-plane px-3 py-1 rounded-lg text-xs font-bold uppercase ${filterCategory === 'military' ? 'bg-sky-600 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}">Military Stealth</button>
+          <button data-filter="space" class="btn-filter-plane px-3 py-1 rounded-lg text-xs font-bold uppercase ${filterCategory === 'space' ? 'bg-sky-600 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}">Space & Rockets</button>
+          <button data-filter="cosmic" class="btn-filter-plane px-3 py-1 rounded-lg text-xs font-bold uppercase ${filterCategory === 'cosmic' ? 'bg-sky-600 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}">Cosmic Dreadnoughts</button>
+        </div>
+
+        <div class="modal-body py-1">
+          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 max-h-[58vh] overflow-y-auto pr-1">
+            ${cards}
+          </div>
+        </div>
+
+        <div class="modal-footer pt-3 border-t border-slate-700 flex justify-between items-center text-xs text-slate-400">
+          <span>Available Cash: <b class="text-amber-400 text-sm">$${Math.floor(gameState.money).toLocaleString()}</b></span>
+          <span>Tip: Planes stationed on hangar pads produce $/second forever!</span>
+        </div>
+      `;
+    };
+
+    const updateView = () => {
+      document.getElementById('modal-content').innerHTML = renderPlaneShop();
+      bindEvents();
+    };
+
+    const bindEvents = () => {
+      document.getElementById('modal-close-btn').addEventListener('click', () => this.closeModal());
+      document.querySelectorAll('.btn-filter-plane').forEach(btn => {
+        btn.addEventListener('click', () => {
+          filterCategory = btn.getAttribute('data-filter');
+          updateView();
+        });
+      });
+
+      document.querySelectorAll('.btn-buy-plane').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const planeId = btn.getAttribute('data-buy-plane');
+          const planeDef = PLANES_DATABASE.find(p => p.id === planeId);
+          if (planeDef && gameState.buyPlane(planeDef)) {
+            soundEngine.playBaseDeposit();
+            confetti({ particleCount: 75, spread: 70 });
+            this.showToast(`✈️ Purchased ${planeDef.name}! Stationed in Hangar Base!`, 'success');
+            updateView();
+          }
+        });
+      });
+    };
+
+    this.openModal(renderPlaneShop());
+    bindEvents();
+  }
+
+  // -------------------------------------------------------------
+  // Speed & Nitro Thrusters Shop Modal
+  // -------------------------------------------------------------
+  openSpeedShopModal() {
+    const renderSpeedShop = () => {
+      let cardsHtml = '';
+      for (const [key, def] of Object.entries(SPEED_UPGRADES)) {
+        const lvl = gameState.speedUpgrades[key] || 1;
+        const isMax = lvl >= def.maxLevel;
+        const cost = gameState.getSpeedUpgradeCost(key);
+        const canAfford = gameState.money >= cost && !isMax;
+        const currentVal = def.formatValue(def.getValue(lvl));
+        const nextVal = !isMax ? def.formatValue(def.getValue(lvl + 1)) : 'MAX';
+
+        cardsHtml += `
+          <div class="upgrade-card flex items-center justify-between p-4 rounded-xl bg-slate-800/90 border border-slate-700 hover:border-slate-600 transition-all">
+            <div class="flex items-center gap-3">
+              <div class="text-3xl p-2.5 rounded-xl bg-slate-900 border border-slate-700">${def.icon}</div>
+              <div>
+                <div class="flex items-center gap-2">
+                  <h4 class="font-black text-white text-base">${def.name}</h4>
+                  <span class="text-xs px-2 py-0.5 rounded-full font-bold bg-amber-900/60 text-amber-300 border border-amber-700">Lvl ${lvl}/${def.maxLevel}</span>
+                </div>
+                <p class="text-xs text-slate-400 mt-0.5">${def.description}</p>
+                <div class="text-xs font-semibold text-amber-400 mt-1">
+                  Current: <b>${currentVal}</b> ${!isMax ? `➔ <span class="text-emerald-400 font-bold">${nextVal}</span>` : ''}
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <button 
+                data-speed-upgrade="${key}" 
+                class="btn-buy-speed px-4 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider transition-all cursor-pointer ${
+                  isMax 
+                    ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
+                    : canAfford 
+                      ? 'bg-amber-600 hover:bg-amber-500 text-white shadow-lg shadow-amber-600/30 active:scale-95' 
+                      : 'bg-slate-700/60 text-slate-400 cursor-not-allowed border border-slate-700'
+                }"
+                ${isMax || !canAfford ? 'disabled' : ''}
+              >
+                ${isMax ? 'MAXED' : `BOOST<br><span class="text-yellow-200">$${cost.toLocaleString()}</span>`}
+              </button>
+            </div>
+          </div>
+        `;
+      }
+
+      return `
+        <div class="modal-header flex items-center justify-between pb-3 border-b border-amber-800">
+          <div class="flex items-center gap-2">
+            <span class="text-2xl">⚡</span>
+            <div>
+              <h2 class="text-lg font-black text-amber-400 uppercase tracking-wide">Speed & Nitro Workshop</h2>
+              <div class="text-xs text-slate-400">Upgrade your top speed, dash acceleration, and multi-jump power!</div>
+            </div>
+          </div>
+          <button id="modal-close-btn" class="text-slate-400 hover:text-white text-xl p-1 font-mono">✕</button>
+        </div>
+
+        <div class="modal-body py-4 flex flex-col gap-3 max-h-[62vh] overflow-y-auto pr-1">
+          ${cardsHtml}
+        </div>
+
+        <div class="modal-footer pt-3 border-t border-slate-700 flex justify-between items-center text-xs text-slate-400">
+          <span>Available Cash: <b class="text-amber-400 text-sm">$${Math.floor(gameState.money).toLocaleString()}</b></span>
+          <span>Current Pilot Speed: <b class="text-emerald-400 font-bold">${gameState.getPlayerSpeed().toFixed(1)} m/s</b></span>
+        </div>
+      `;
+    };
+
+    const updateView = () => {
+      document.getElementById('modal-content').innerHTML = renderSpeedShop();
+      bindEvents();
+    };
+
+    const bindEvents = () => {
+      document.getElementById('modal-close-btn').addEventListener('click', () => this.closeModal());
+      document.querySelectorAll('.btn-buy-speed').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const key = btn.getAttribute('data-speed-upgrade');
+          if (gameState.buySpeedUpgrade(key)) {
+            soundEngine.playUpgrade();
+            this.showToast(`⚡ Upgraded ${SPEED_UPGRADES[key].name}!`, 'success');
+            updateView();
+          }
+        });
+      });
+    };
+
+    this.openModal(renderSpeedShop());
+    bindEvents();
+  }
+
   // 1. Upgrades Shop Modal
   openShopModal() {
     const renderShop = () => {
@@ -739,49 +990,53 @@ export class GameUI {
     bindEvents();
   }
 
-  // 2. Rebirth Altar Modal
+  // 2. Rebirth Altar Modal (20 Rebirth Ranks)
   openRebirthModal() {
     const currentTier = gameState.getRebirthTier();
     const nextTier = gameState.getNextRebirthTier();
     const canRebirth = gameState.canRebirth();
+    const rankProgressPct = Math.round((gameState.rebirths / 20) * 100);
 
     const renderRebirth = () => `
       <div class="modal-header flex items-center justify-between pb-3 border-b border-purple-800">
         <div class="flex items-center gap-2">
           <span class="text-2xl">🌌</span>
-          <h2 class="text-xl font-black text-purple-300 tracking-wide uppercase">Celestial Rebirth Altar</h2>
+          <div>
+            <h2 class="text-xl font-black text-purple-300 tracking-wide uppercase">Celestial Rebirth Altar (Rank ${gameState.rebirths}/20)</h2>
+            <div class="text-xs text-slate-400">Progression: <b class="text-purple-300">${rankProgressPct}%</b> of all 20 Cosmic Ranks</div>
+          </div>
         </div>
         <button id="modal-close-btn" class="text-slate-400 hover:text-white text-xl p-1 font-mono">✕</button>
       </div>
 
-      <div class="modal-body py-5 flex flex-col gap-4 text-center">
+      <div class="modal-body py-4 flex flex-col gap-4 text-center max-h-[65vh] overflow-y-auto pr-1">
         <!-- Rebirth Crest -->
-        <div class="p-6 rounded-2xl bg-gradient-to-b from-purple-900/40 to-slate-900 border border-purple-700/50 shadow-2xl flex flex-col items-center">
+        <div class="p-5 rounded-2xl bg-gradient-to-b from-purple-900/50 to-slate-900 border border-purple-700/60 shadow-2xl flex flex-col items-center">
           <div class="text-5xl mb-2 animate-bounce">👑</div>
           <h3 class="text-2xl font-black text-white">${currentTier.title}</h3>
-          <div class="text-sm font-bold text-purple-400 mt-1">Current Multiplier: x${currentTier.multiplier.toFixed(1)}</div>
+          <div class="text-sm font-bold text-purple-400 mt-1">Current Multiplier: x${currentTier.multiplier.toLocaleString()}</div>
 
           ${nextTier ? `
-            <div class="w-full my-4 border-t border-purple-800/60"></div>
-            <div class="text-xs uppercase font-bold text-slate-400 tracking-wider">Next Rebirth Evolution</div>
+            <div class="w-full my-3 border-t border-purple-800/60"></div>
+            <div class="text-xs uppercase font-bold text-slate-400 tracking-wider">Next Rebirth Evolution (Rank ${nextTier.rank})</div>
             <div class="text-xl font-black text-amber-400 mt-1">${nextTier.title}</div>
             
-            <div class="grid grid-cols-2 gap-3 w-full mt-4 text-left">
-              <div class="p-3 rounded-xl bg-purple-950/60 border border-purple-800">
+            <div class="grid grid-cols-2 gap-3 w-full mt-3 text-left">
+              <div class="p-3 rounded-xl bg-purple-950/70 border border-purple-800">
                 <div class="text-xs text-purple-300 font-semibold">Income Multiplier</div>
-                <div class="text-lg font-black text-emerald-400">x${nextTier.multiplier.toFixed(1)} Multiplier</div>
+                <div class="text-base font-black text-emerald-400">x${nextTier.multiplier.toLocaleString()} Boost</div>
               </div>
-              <div class="p-3 rounded-xl bg-purple-950/60 border border-purple-800">
-                <div class="text-xs text-purple-300 font-semibold">Speed Bonus</div>
-                <div class="text-lg font-black text-sky-400">+${nextTier.bonusSpeed} m/s Base</div>
+              <div class="p-3 rounded-xl bg-purple-950/70 border border-purple-800">
+                <div class="text-xs text-purple-300 font-semibold">Permanent Speed</div>
+                <div class="text-base font-black text-sky-400">+${nextTier.bonusSpeed} m/s Base</div>
               </div>
             </div>
 
-            <div class="mt-4 text-xs text-slate-300 font-semibold">
-              ✨ Unlocks exclusive <b>${nextTier.wings || 'Cosmic'} Rebirth Wings</b> & Prestige aura!
+            <div class="mt-3 text-xs text-slate-300 font-semibold">
+              ✨ Unlocks <b>${nextTier.wings || 'Cosmic'} Rebirth Wings</b> & Prestige Aura!
             </div>
           ` : `
-            <div class="mt-4 text-amber-300 font-bold">🌟 You have reached the Maximum Celestial Sovereign Rank!</div>
+            <div class="mt-4 text-amber-300 font-bold">🌟 You have achieved Rank 20: Omnipotent Sky Deity! The highest honor in the universe!</div>
           `}
         </div>
 
@@ -798,7 +1053,7 @@ export class GameUI {
 
             <button 
               id="btn-confirm-rebirth"
-              class="w-full py-4 rounded-xl font-black text-sm uppercase tracking-wider shadow-xl transition-all mt-2 cursor-pointer ${
+              class="w-full py-3.5 rounded-xl font-black text-sm uppercase tracking-wider shadow-xl transition-all mt-2 cursor-pointer ${
                 canRebirth
                   ? 'bg-gradient-to-r from-purple-600 via-pink-600 to-amber-500 hover:opacity-95 text-white shadow-purple-500/40 active:scale-95 animate-pulse'
                   : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
@@ -1187,18 +1442,21 @@ export class GameUI {
           </div>
         </div>
 
-        <!-- Section 2: Rebirth Rank Jump -->
+        <!-- Section 2: Rebirth Rank Jump (20 Ranks) -->
         <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-700 flex flex-col gap-2">
-          <h4 class="font-black text-xs uppercase tracking-wider text-purple-400">🔄 Instant Rebirth Ascension</h4>
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <div class="flex justify-between items-center">
+            <h4 class="font-black text-xs uppercase tracking-wider text-purple-400">🔄 20 Rebirth Ranks Quick-Ascend</h4>
+            <span class="text-xs text-purple-300 font-bold">Current: Rank ${gameState.rebirths}/20</span>
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-1.5 max-h-44 overflow-y-auto pr-1">
             ${REBIRTH_TIERS.map(t => `
               <button data-set-rebirth="${t.rank}" class="btn-admin-rebirth px-2 py-1.5 rounded-lg border text-xs font-bold text-left transition-all cursor-pointer ${
                 gameState.rebirths === t.rank 
-                  ? 'bg-purple-900/80 border-purple-400 text-white shadow-md' 
+                  ? 'bg-purple-900/90 border-purple-400 text-white shadow-md' 
                   : 'bg-slate-800 border-slate-700 text-slate-300 hover:border-slate-500'
               }">
-                <div class="text-[10px] text-purple-300">Rank ${t.rank} (${t.multiplier}x)</div>
-                <div class="truncate font-black text-xs">${t.title}</div>
+                <div class="text-[9px] text-purple-300">Rank ${t.rank} (${t.multiplier.toLocaleString()}x)</div>
+                <div class="truncate font-black text-[11px]">${t.title}</div>
               </button>
             `).join('')}
           </div>

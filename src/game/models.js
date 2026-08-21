@@ -884,100 +884,175 @@ export function createTrenchMesh(zPos, width = 34, trenchDepth = 6.5, length = 1
 }
 
 // -------------------------------------------------------------
-// 5. Airport Base & Hangar Helipads Generator
+// 5. Massive Airport Megabase & Hangar Complex Generator
 // -------------------------------------------------------------
-export function createAirportBase(maxSlots = 24) {
+export function createAirportBase(maxSlots = 36) {
   const baseGroup = new THREE.Group();
   baseGroup.name = 'airport_base';
 
-  const tarmacMat = getMaterial('#1e293b', { roughness: 0.9 });
-  const lineMat = getMaterial('#facc15', { roughness: 0.5, emissive: '#ca8a04', emissiveIntensity: 0.3 });
-  const laserMat = getMaterial('#22c55e', { emissive: '#22c55e', emissiveIntensity: 1.5, transparent: true, opacity: 0.6 });
+  const tarmacMat = getMaterial('#1e293b', { roughness: 0.95 });
+  const concreteMat = getMaterial('#334155', { roughness: 0.8 });
+  const darkMetalMat = getMaterial('#0f172a', { metalness: 0.8, roughness: 0.2 });
+  const yellowLineMat = getMaterial('#facc15', { emissive: '#ca8a04', emissiveIntensity: 0.6 });
+  const laserMat = getMaterial('#22c55e', { emissive: '#22c55e', emissiveIntensity: 1.6, transparent: true, opacity: 0.65 });
+  const glassMat = getMaterial('#38bdf8', { roughness: 0.1, metalness: 0.9, transparent: true, opacity: 0.75 });
 
-  // Main Base Ground Pad (Z: -90 to +15)
-  const baseFloor = new THREE.Mesh(new THREE.BoxGeometry(70, 1, 110), tarmacMat);
-  baseFloor.position.set(0, -0.5, -40);
+  // 1. Massive Base Ground Platform (Z: -125 to +18, Width: 90)
+  const baseFloor = new THREE.Mesh(new THREE.BoxGeometry(90, 1.2, 145), tarmacMat);
+  baseFloor.position.set(0, -0.6, -53);
   baseGroup.add(baseFloor);
 
-  // Big Laser Shield Forcefield (Stops waves at Z = 15)
-  const shieldGeom = new THREE.BoxGeometry(70, 24, 0.5);
+  // Concrete Runway Apron Borders
+  const borderL = new THREE.Mesh(new THREE.BoxGeometry(2, 0.4, 145), concreteMat);
+  borderL.position.set(-45, 0.1, -53);
+  const borderR = borderL.clone();
+  borderR.position.x = 45;
+  baseGroup.add(borderL, borderR);
+
+  // 2. Big Laser Shield Forcefield (Stops waves at Z = 16)
+  const shieldGeom = new THREE.BoxGeometry(86, 26, 0.6);
   const shield = new THREE.Mesh(shieldGeom, laserMat);
-  shield.position.set(0, 12, 15);
+  shield.position.set(0, 13, 16);
   baseGroup.add(shield);
 
-  // Forcefield generator pylons
-  [-35, 35].forEach(x => {
-    const pylon = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.6, 25, 8), getMaterial('#334155', { metalness: 0.7 }));
-    pylon.position.set(x, 12.5, 15);
-    const pylonTop = new THREE.Mesh(new THREE.SphereGeometry(1.8, 8, 8), getMaterial('#22c55e', { emissive: '#22c55e', emissiveIntensity: 2.0 }));
-    pylonTop.position.set(x, 25, 15);
+  // Forcefield generator pylons with glowing power coils
+  [-43, 43].forEach(x => {
+    const pylon = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 1.8, 28, 12), darkMetalMat);
+    pylon.position.set(x, 14, 16);
+    const pylonTop = new THREE.Mesh(new THREE.SphereGeometry(2.0, 12, 12), getMaterial('#22c55e', { emissive: '#22c55e', emissiveIntensity: 2.5 }));
+    pylonTop.position.set(x, 28, 16);
+    // Energy Rings
+    for (let r = 6; r < 26; r += 6) {
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(2.2, 0.15, 8, 16), getMaterial('#34d399', { emissive: '#34d399', emissiveIntensity: 2.0 }));
+      ring.rotateX(Math.PI / 2);
+      ring.position.set(x, r, 16);
+      baseGroup.add(ring);
+    }
     baseGroup.add(pylon, pylonTop);
   });
 
-  // Drop Zone Platform (Walk in to deposit carried planes)
-  const dropZoneGeom = new THREE.CylinderGeometry(5.5, 5.5, 0.2, 24);
-  const dropZoneMat = getMaterial('#10b981', { emissive: '#059669', emissiveIntensity: 1.0, transparent: true, opacity: 0.8 });
+  // 3. Drop Zone Platform (Z = 0)
+  const dropZoneGeom = new THREE.CylinderGeometry(6.5, 6.5, 0.25, 32);
+  const dropZoneMat = getMaterial('#10b981', { emissive: '#059669', emissiveIntensity: 1.2, transparent: true, opacity: 0.85 });
   const dropZone = new THREE.Mesh(dropZoneGeom, dropZoneMat);
-  dropZone.position.set(0, 0.1, 0);
+  dropZone.position.set(0, 0.12, 0);
   baseGroup.add(dropZone);
 
-  // Drop Zone Swirling Beacon Ring
-  const beaconRing = new THREE.Mesh(new THREE.TorusGeometry(5.8, 0.15, 8, 32), getMaterial('#34d399', { emissive: '#34d399', emissiveIntensity: 1.8 }));
+  // Swirling Beacon Rings
+  const beaconRing = new THREE.Mesh(new THREE.TorusGeometry(6.8, 0.18, 8, 32), getMaterial('#34d399', { emissive: '#34d399', emissiveIntensity: 2.2 }));
   beaconRing.rotateX(Math.PI / 2);
-  beaconRing.position.set(0, 0.15, 0);
+  beaconRing.position.set(0, 0.18, 0);
   baseGroup.add(beaconRing);
 
-  // Control Tower
-  const towerBase = new THREE.Mesh(new THREE.CylinderGeometry(3.0, 4.0, 18, 12), getMaterial('#475569'));
-  towerBase.position.set(-26, 9, -50);
-  const towerCab = new THREE.Mesh(new THREE.CylinderGeometry(5.0, 3.5, 4.5, 12), getMaterial('#38bdf8', { transparent: true, opacity: 0.75, roughness: 0.1 }));
-  towerCab.position.set(-26, 20, -50);
-  const towerRoof = new THREE.Mesh(new THREE.ConeGeometry(5.2, 2.5, 12), getMaterial('#1e293b'));
-  towerRoof.position.set(-26, 23.5, -50);
-  const radarDish = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 0.2, 0.5, 8), getMaterial('#f97316', { emissive: '#f97316', emissiveIntensity: 0.8 }));
-  radarDish.position.set(-26, 25.5, -50);
-  radarDish.rotateX(0.4);
-  baseGroup.add(towerBase, towerCab, towerRoof, radarDish);
-  baseGroup.userData.radarDish = radarDish;
+  // 4. Main Control Tower & Terminal (X = -36, Z = -75)
+  const towerBase = new THREE.Mesh(new THREE.CylinderGeometry(3.5, 4.8, 24, 12), concreteMat);
+  towerBase.position.set(-36, 12, -75);
+  const towerCab = new THREE.Mesh(new THREE.CylinderGeometry(6.0, 4.2, 5.5, 12), glassMat);
+  towerCab.position.set(-36, 26.5, -75);
+  const towerRoof = new THREE.Mesh(new THREE.ConeGeometry(6.5, 3.0, 12), darkMetalMat);
+  towerRoof.position.set(-36, 30.5, -75);
 
-  // Rebirth Altar Platform (Z = -70, X = 0)
-  const altarBase = new THREE.Mesh(new THREE.CylinderGeometry(5.0, 6.0, 1.2, 16), getMaterial('#4c1d95', { metalness: 0.8 }));
-  altarBase.position.set(0, 0.6, -72);
-  const altarPillars = [];
-  for (let i = 0; i < 4; i++) {
-    const angle = (i * Math.PI) / 2 + Math.PI / 4;
-    const px = Math.cos(angle) * 4.2;
-    const pz = -72 + Math.sin(angle) * 4.2;
-    const pillar = new THREE.Mesh(new THREE.BoxGeometry(0.8, 4.5, 0.8), getMaterial('#7c3aed', { emissive: '#6d28d9', emissiveIntensity: 0.6 }));
-    pillar.position.set(px, 2.25, pz);
+  // Radar Dish Array
+  const radarGroup = new THREE.Group();
+  radarGroup.position.set(-36, 33, -75);
+  const radarDish = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 0.3, 0.6, 12), getMaterial('#f97316', { emissive: '#ea580c', emissiveIntensity: 1.2 }));
+  radarDish.rotateX(0.5);
+  radarGroup.add(radarDish);
+  baseGroup.add(towerBase, towerCab, towerRoof, radarGroup);
+  baseGroup.userData.radarGroup = radarGroup;
+
+  // Terminal Building
+  const terminal = new THREE.Mesh(new THREE.BoxGeometry(22, 9, 28), concreteMat);
+  terminal.position.set(-34, 4.5, -50);
+  const terminalGlass = new THREE.Mesh(new THREE.BoxGeometry(22.2, 4.5, 20), glassMat);
+  terminalGlass.position.set(-34, 5.5, -50);
+  baseGroup.add(terminal, terminalGlass);
+
+  // 5. Hangar Complexes (Civilian, Commercial, Military Stealth, Spaceport)
+  // Hangar Alpha (Civilian Prop)
+  const hAlpha = new THREE.Mesh(new THREE.CylinderGeometry(7, 7, 24, 12, 1, false, 0, Math.PI), getMaterial('#dc2626'));
+  hAlpha.rotateZ(Math.PI / 2);
+  hAlpha.position.set(-34, 4, -20);
+  baseGroup.add(hAlpha);
+
+  // Hangar Bravo (Military Stealth Bay)
+  const hBravo = new THREE.Mesh(new THREE.BoxGeometry(18, 10, 26), darkMetalMat);
+  hBravo.position.set(34, 5, -20);
+  const hBravoDoor = new THREE.Mesh(new THREE.BoxGeometry(14, 8, 0.5), getMaterial('#475569', { metalness: 0.9 }));
+  hBravoDoor.position.set(34, 4, -7);
+  baseGroup.add(hBravo, hBravoDoor);
+
+  // Orbital Spaceport Rocket Gantry (X = 34, Z = -75)
+  const gantryPillar1 = new THREE.Mesh(new THREE.BoxGeometry(1.5, 32, 1.5), getMaterial('#f97316', { metalness: 0.8 }));
+  gantryPillar1.position.set(32, 16, -72);
+  const gantryPillar2 = gantryPillar1.clone();
+  gantryPillar2.position.set(38, 16, -72);
+  const gantryBridge = new THREE.Mesh(new THREE.BoxGeometry(10, 1.5, 4), darkMetalMat);
+  gantryBridge.position.set(35, 25, -72);
+  baseGroup.add(gantryPillar1, gantryPillar2, gantryBridge);
+
+  // Jet Fuel Tank Farm (X = 34, Z = -45)
+  [-3, 3].forEach(offZ => {
+    const tank = new THREE.Mesh(new THREE.CylinderGeometry(3.5, 3.5, 8, 16), getMaterial('#94a3b8', { metalness: 0.9, roughness: 0.2 }));
+    tank.position.set(34, 4, -45 + offZ);
+    baseGroup.add(tank);
+  });
+
+  // 6. Interactive Base Shop Buildings:
+  // A. ✈️ AIRPLANES DEALERSHIP SHOWROOM (X = -16, Z = -35)
+  const planeShop = new THREE.Mesh(new THREE.BoxGeometry(7.5, 5, 6.5), getMaterial('#0284c7'));
+  planeShop.position.set(-16, 2.5, -35);
+  const planeShopGlass = new THREE.Mesh(new THREE.BoxGeometry(7.6, 3, 5), glassMat);
+  planeShopGlass.position.set(-16, 2.5, -35);
+  const planeShopSign = new THREE.Mesh(new THREE.BoxGeometry(6.5, 1.4, 0.4), getMaterial('#38bdf8', { emissive: '#0284c7', emissiveIntensity: 1.5 }));
+  planeShopSign.position.set(-16, 5.8, -31.6);
+  baseGroup.add(planeShop, planeShopGlass, planeShopSign);
+
+  // B. ⚡ SPEED & NITRO WORKSHOP (X = 16, Z = -35)
+  const speedShop = new THREE.Mesh(new THREE.BoxGeometry(7.5, 5, 6.5), getMaterial('#d97706'));
+  speedShop.position.set(16, 2.5, -35);
+  const speedShopSign = new THREE.Mesh(new THREE.BoxGeometry(6.5, 1.4, 0.4), getMaterial('#facc15', { emissive: '#eab308', emissiveIntensity: 1.8 }));
+  speedShopSign.position.set(16, 5.8, -31.6);
+  baseGroup.add(speedShop, speedShopSign);
+
+  // C. 🛒 PILOT UPGRADES KIOSK (X = 16, Z = -15)
+  const upgShop = new THREE.Mesh(new THREE.BoxGeometry(6, 4, 4.5), getMaterial('#4338ca'));
+  upgShop.position.set(16, 2, -15);
+  const upgSign = new THREE.Mesh(new THREE.BoxGeometry(5.2, 1.2, 0.4), getMaterial('#818cf8', { emissive: '#6366f1', emissiveIntensity: 1.5 }));
+  upgSign.position.set(16, 4.5, -12.6);
+  baseGroup.add(upgShop, upgSign);
+
+  // 7. Grand Celestial Rebirth Altar (Z = -105, Center)
+  const altarBase = new THREE.Mesh(new THREE.CylinderGeometry(7.5, 9.0, 1.8, 24), getMaterial('#4c1d95', { metalness: 0.9 }));
+  altarBase.position.set(0, 0.9, -105);
+  for (let i = 0; i < 6; i++) {
+    const angle = (i * Math.PI) / 3;
+    const px = Math.cos(angle) * 6.5;
+    const pz = -105 + Math.sin(angle) * 6.5;
+    const pillar = new THREE.Mesh(new THREE.BoxGeometry(1.2, 7.5, 1.2), getMaterial('#7c3aed', { emissive: '#6d28d9', emissiveIntensity: 1.0 }));
+    pillar.position.set(px, 3.75, pz);
     baseGroup.add(pillar);
   }
-  const altarBeam = new THREE.Mesh(new THREE.CylinderGeometry(2.0, 2.0, 40, 16, 1, true), getMaterial('#c084fc', { emissive: '#c084fc', emissiveIntensity: 1.8, transparent: true, opacity: 0.35, doubleSided: true }));
-  altarBeam.position.set(0, 20, -72);
+  // Towering 60m Celestial Energy Beam
+  const altarBeam = new THREE.Mesh(
+    new THREE.CylinderGeometry(3.0, 3.0, 60, 24, 1, true),
+    getMaterial('#c084fc', { emissive: '#c084fc', emissiveIntensity: 2.2, transparent: true, opacity: 0.45, doubleSided: true })
+  );
+  altarBeam.position.set(0, 30, -105);
   baseGroup.add(altarBase, altarBeam);
 
-  // Shop / Upgrades Kiosk (X = 22, Z = -35)
-  const shopKiosk = new THREE.Mesh(new THREE.BoxGeometry(6, 4, 4), getMaterial('#0284c7'));
-  shopKiosk.position.set(22, 2, -35);
-  const shopRoof = new THREE.Mesh(new THREE.ConeGeometry(4.8, 2, 4), getMaterial('#f59e0b'));
-  shopRoof.position.set(22, 5, -35);
-  shopRoof.rotateY(Math.PI / 4);
-  const shopSign = new THREE.Mesh(new THREE.BoxGeometry(4.5, 1.2, 0.3), getMaterial('#facc15', { emissive: '#eab308', emissiveIntensity: 1.2 }));
-  shopSign.position.set(22, 3.5, -32.8);
-  baseGroup.add(shopKiosk, shopRoof, shopSign);
-
-  // Plane Hangar Parking Pads (Left & Right Runway Slots)
+  // 8. 36 Plane Hangar Parking Pads
   const hangarPads = [];
-  const padMat = getMaterial('#0f172a', { roughness: 0.6 });
-  const padBorderMat = getMaterial('#38bdf8', { emissive: '#0284c7', emissiveIntensity: 0.8 });
+  const padMat = getMaterial('#0f172a', { roughness: 0.7 });
+  const padBorderMat = getMaterial('#38bdf8', { emissive: '#0284c7', emissiveIntensity: 0.9 });
 
-  const rows = 6;
+  const rows = 9;
   const cols = 4; // 2 on left, 2 on right
   let padIndex = 0;
 
   for (let r = 0; r < rows; r++) {
-    const z = -20 - r * 8.5;
-    const xPositions = [-22, -13, 13, 22];
+    const z = -15 - r * 9.5;
+    const xPositions = [-23, -14, 14, 23];
 
     for (let c = 0; c < cols; c++) {
       if (padIndex >= maxSlots) break;
@@ -985,15 +1060,15 @@ export function createAirportBase(maxSlots = 24) {
 
       const padGroup = new THREE.Group();
       padGroup.name = `hangar_pad_${padIndex}`;
-      padGroup.position.set(x, 0.05, z);
+      padGroup.position.set(x, 0.06, z);
 
-      // Pad Platform
-      const padMesh = new THREE.Mesh(new THREE.BoxGeometry(6.2, 0.1, 6.2), padMat);
+      // Pad Surface
+      const padMesh = new THREE.Mesh(new THREE.BoxGeometry(6.6, 0.12, 6.6), padMat);
       // Border Rim
-      const rimGeom = new THREE.RingGeometry(2.4, 2.7, 16);
+      const rimGeom = new THREE.RingGeometry(2.5, 2.9, 16);
       rimGeom.rotateX(-Math.PI / 2);
       const rimMesh = new THREE.Mesh(rimGeom, padBorderMat);
-      rimMesh.position.y = 0.06;
+      rimMesh.position.y = 0.08;
 
       padGroup.add(padMesh, rimMesh);
       baseGroup.add(padGroup);
@@ -1011,14 +1086,22 @@ export function createAirportBase(maxSlots = 24) {
     }
   }
 
+  // Taxiway Centerlines
+  for (let tz = -110; tz <= 10; tz += 10) {
+    const dash = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.06, 5), yellowLineMat);
+    dash.position.set(0, 0.04, tz);
+    baseGroup.add(dash);
+  }
+
   baseGroup.userData = {
     hangarPads,
     dropZonePosition: new THREE.Vector3(0, 0, 0),
-    dropZoneRadius: 5.5,
-    rebirthAltarPosition: new THREE.Vector3(0, 0, -72),
-    rebirthRadius: 5.0,
-    shopPosition: new THREE.Vector3(22, 0, -35),
-    shopRadius: 4.5
+    dropZoneRadius: 6.5,
+    rebirthAltarPosition: new THREE.Vector3(0, 0, -105),
+    rebirthRadius: 7.5,
+    shopPosition: new THREE.Vector3(16, 0, -15),
+    speedShopPosition: new THREE.Vector3(16, 0, -35),
+    airplaneShopPosition: new THREE.Vector3(-16, 0, -35)
   };
 
   return baseGroup;
