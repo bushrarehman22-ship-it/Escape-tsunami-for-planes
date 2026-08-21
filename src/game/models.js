@@ -578,18 +578,24 @@ export function createPlaneMesh(planeDef, showBadge = true) {
 }
 
 // -------------------------------------------------------------
-// 2. Roblox Pilot Character Avatar Generator (With Admin Crown)
+// 2. Roblox Pilot Character Avatar Generator (With Skins & Crown)
 // -------------------------------------------------------------
-export function createPilotCharacter(rebirthRank = 0, isAdmin = true) {
+export function createPilotCharacter(rebirthRank = 0, avatarId = 'default') {
   const root = new THREE.Group();
   root.name = 'player';
 
+  const avatarDef = AVATARS_DATABASE.find(a => a.id === avatarId) || AVATARS_DATABASE[0];
+
   // Skin, Suit, Helmet materials
   const skinMat = getMaterial('#fcd34d', { roughness: 0.6 }); // Roblox yellow
-  const suitMat = getMaterial('#1e293b', { roughness: 0.4 });
-  const trimMat = getMaterial('#38bdf8', { roughness: 0.3, emissive: '#0284c7', emissiveIntensity: 0.4 });
-  const helmetMat = getMaterial('#f97316', { roughness: 0.3 }); // Orange flight helmet
-  const visorMat = getMaterial('#0284c7', { roughness: 0.1, metalness: 0.9, transparent: true, opacity: 0.85 });
+  const suitMat = getMaterial(avatarDef.suitColor || '#1e293b', { roughness: 0.4, metalness: avatarDef.metalness || 0.1 });
+  const trimMat = getMaterial(avatarDef.trimColor || '#38bdf8', {
+    roughness: 0.3,
+    emissive: avatarDef.trimColor || '#0284c7',
+    emissiveIntensity: avatarDef.emissiveIntensity || 0.5
+  });
+  const helmetMat = getMaterial(avatarDef.helmetColor || '#f97316', { roughness: 0.3, metalness: avatarDef.metalness || 0.2 });
+  const visorMat = getMaterial(avatarDef.visorColor || '#0284c7', { roughness: 0.1, metalness: 0.9, transparent: true, opacity: 0.85 });
   const goldMat = getMaterial('#fbbf24', { metalness: 0.9, roughness: 0.2, emissive: '#f59e0b', emissiveIntensity: 1.2 });
 
   // Body Parts Group
@@ -602,8 +608,9 @@ export function createPilotCharacter(rebirthRank = 0, isAdmin = true) {
   badge.position.set(0, 0.1, 0.26);
   torso.add(badge);
 
-  // Head & Helmet
+  // Head & Helmet (Tagged so FPP can hide them to prevent clipping)
   const headGroup = new THREE.Group();
+  headGroup.name = 'headGroup';
   headGroup.position.set(0, 0.85, 0);
   const head = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.65, 0.65), skinMat);
   const helmet = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.72, 0.72), helmetMat);
@@ -658,23 +665,9 @@ export function createPilotCharacter(rebirthRank = 0, isAdmin = true) {
   const wingsGroup = new THREE.Group();
   wingsGroup.name = 'rebirthWings';
   wingsGroup.position.set(0, 0.2, -0.45);
-  if (rebirthRank > 0) {
-    const wingColors = ['#f59e0b', '#38bdf8', '#a855f7', '#ec4899', '#06b6d4', '#fbbf24'];
-    const wingColor = wingColors[Math.min(rebirthRank - 1, wingColors.length - 1)];
-    const wingMat = getMaterial(wingColor, { emissive: wingColor, emissiveIntensity: 1.2, transparent: true, opacity: 0.85 });
-
-    const leftWing = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.4, 0.06), wingMat);
-    leftWing.position.set(-0.9, 0.2, 0);
-    leftWing.rotation.z = 0.35;
-    const rightWing = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.4, 0.06), wingMat);
-    rightWing.position.set(0.9, 0.2, 0);
-    rightWing.rotation.z = -0.35;
-    wingsGroup.add(leftWing, rightWing);
-  }
   torso.add(wingsGroup);
 
-  // Limbs with Pivot Points for natural running animation
-  // Left Arm
+  // Limbs with Pivot Points
   const leftArmPivot = new THREE.Group();
   leftArmPivot.position.set(-0.65, 0.4, 0);
   const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.35, 1.0, 0.35), suitMat);
@@ -685,7 +678,6 @@ export function createPilotCharacter(rebirthRank = 0, isAdmin = true) {
   leftArmPivot.add(leftArm);
   torso.add(leftArmPivot);
 
-  // Right Arm
   const rightArmPivot = new THREE.Group();
   rightArmPivot.position.set(0.65, 0.4, 0);
   const rightArm = new THREE.Mesh(new THREE.BoxGeometry(0.35, 1.0, 0.35), suitMat);
@@ -696,7 +688,6 @@ export function createPilotCharacter(rebirthRank = 0, isAdmin = true) {
   rightArmPivot.add(rightArm);
   torso.add(rightArmPivot);
 
-  // Left Leg
   const leftLegPivot = new THREE.Group();
   leftLegPivot.position.set(-0.25, -0.55, 0);
   const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.9, 0.4), suitMat);
@@ -707,7 +698,6 @@ export function createPilotCharacter(rebirthRank = 0, isAdmin = true) {
   leftLegPivot.add(leftLeg);
   torso.add(leftLegPivot);
 
-  // Right Leg
   const rightLegPivot = new THREE.Group();
   rightLegPivot.position.set(0.25, -0.55, 0);
   const rightLeg = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.9, 0.4), suitMat);
@@ -720,6 +710,7 @@ export function createPilotCharacter(rebirthRank = 0, isAdmin = true) {
 
   root.userData = {
     torso,
+    headGroup,
     leftArmPivot,
     rightArmPivot,
     leftLegPivot,
@@ -729,6 +720,98 @@ export function createPilotCharacter(rebirthRank = 0, isAdmin = true) {
   };
 
   return root;
+}
+
+// -------------------------------------------------------------
+// 2.5 Procedural Pet 3D Companion Generator
+// -------------------------------------------------------------
+export function createPetMesh(petDef) {
+  const group = new THREE.Group();
+  group.name = `pet_${petDef.id}`;
+
+  const petMat = getMaterial(petDef.color, { roughness: 0.3, metalness: 0.4 });
+  const glowMat = getMaterial(petDef.glowColor, { emissive: petDef.glowColor, emissiveIntensity: 1.8 });
+
+  const animParts = [];
+
+  switch (petDef.id) {
+    case 'copilot_drone': {
+      // Quadcopter body
+      const body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.15, 0.6), petMat);
+      const eye = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), glowMat);
+      eye.position.set(0, 0.08, 0.25);
+      group.add(body, eye);
+
+      // 4 rotors
+      [[-0.35, 0.35], [0.35, 0.35], [-0.35, -0.35], [0.35, -0.35]].forEach(([rx, rz]) => {
+        const rotorArm = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.4), getMaterial('#334155'));
+        rotorArm.rotateZ(Math.PI / 2);
+        rotorArm.position.set(rx * 0.6, 0, rz * 0.6);
+        const prop = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.02, 0.05), glowMat);
+        prop.position.set(rx, 0.1, rz);
+        group.add(rotorArm, prop);
+        animParts.push(prop);
+      });
+      break;
+    }
+
+    case 'falcon_drone': {
+      // Robotic bird
+      const body = new THREE.Mesh(new THREE.ConeGeometry(0.25, 0.8, 8), petMat);
+      body.rotateX(Math.PI / 2);
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), glowMat);
+      head.position.set(0, 0.15, 0.4);
+      group.add(body, head);
+
+      // Dual wings
+      const wingL = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.04, 0.3), petMat);
+      wingL.position.set(-0.45, 0.1, 0);
+      const wingR = wingL.clone();
+      wingR.position.x = 0.45;
+      group.add(wingL, wingR);
+      animParts.push(wingL, wingR);
+      break;
+    }
+
+    case 'phoenix_bird': {
+      // Cosmic Phoenix
+      const core = new THREE.Mesh(new THREE.SphereGeometry(0.3, 12, 12), glowMat);
+      const aura = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.08, 8, 16), getMaterial('#f97316', { emissive: '#ea580c', emissiveIntensity: 2.0 }));
+      aura.rotateX(Math.PI / 2);
+      group.add(core, aura);
+      animParts.push(aura);
+      break;
+    }
+
+    case 'ufo_drone': {
+      // Tachyon Saucer
+      const saucer = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 0.1, 16), petMat);
+      const dome = new THREE.Mesh(new THREE.SphereGeometry(0.3, 12, 12), glowMat);
+      dome.position.y = 0.1;
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.65, 0.05, 8, 20), glowMat);
+      ring.rotateX(Math.PI / 2);
+      group.add(saucer, dome, ring);
+      animParts.push(ring);
+      break;
+    }
+
+    case 'star_sprite':
+    default: {
+      // Stellar Sprite
+      const star = new THREE.Mesh(new THREE.OctahedronGeometry(0.35, 0), glowMat);
+      const ring1 = new THREE.Mesh(new THREE.TorusGeometry(0.55, 0.04, 8, 16), getMaterial('#38bdf8', { emissive: '#0284c7', emissiveIntensity: 2.0 }));
+      ring1.rotateX(Math.PI / 3);
+      const ring2 = new THREE.Mesh(new THREE.TorusGeometry(0.55, 0.04, 8, 16), getMaterial('#ec4899', { emissive: '#db2777', emissiveIntensity: 2.0 }));
+      ring2.rotateY(Math.PI / 3);
+      group.add(star, ring1, ring2);
+      animParts.push(star, ring1, ring2);
+      break;
+    }
+  }
+
+  group.scale.set(0.85, 0.85, 0.85);
+  group.userData = { animParts, petDef };
+  return group;
 }
 
 // -------------------------------------------------------------
@@ -944,6 +1027,61 @@ export function createAirportBase(maxSlots = 36) {
   beaconRing.position.set(0, 0.18, 0);
   baseGroup.add(beaconRing);
 
+  // 3.5 🏦 MONEY COLLECTION VAULT DOCK (Z = -18, Center)
+  // Tycoon cash collector: Planes accumulate income here until the player steps on this dock!
+  const vaultDockGroup = new THREE.Group();
+  vaultDockGroup.position.set(0, 0, -18);
+
+  const vaultPadMat = getMaterial('#fbbf24', { roughness: 0.2, metalness: 0.8, emissive: '#f59e0b', emissiveIntensity: 1.2 });
+  const vaultPad = new THREE.Mesh(new THREE.BoxGeometry(9.0, 0.25, 6.5), vaultPadMat);
+  vaultPad.position.y = 0.12;
+
+  // Flashing LED border
+  const vaultBorder = new THREE.Mesh(new THREE.BoxGeometry(9.4, 0.15, 6.9), getMaterial('#fef08a', { emissive: '#fef08a', emissiveIntensity: 2.0 }));
+  vaultBorder.position.y = 0.08;
+
+  // 3D Revolving Holographic Dollar / Coin
+  const coinMesh = new THREE.Mesh(
+    new THREE.CylinderGeometry(1.2, 1.2, 0.25, 16),
+    getMaterial('#fbbf24', { emissive: '#fbbf24', emissiveIntensity: 1.8, metalness: 0.9 })
+  );
+  coinMesh.rotateX(Math.PI / 2);
+  coinMesh.position.set(0, 2.4, 0);
+  vaultDockGroup.add(vaultPad, vaultBorder, coinMesh);
+
+  // Floating Cash Vault Canvas Sprite Label
+  const vaultCanvas = document.createElement('canvas');
+  vaultCanvas.width = 512;
+  vaultCanvas.height = 140;
+  const vCtx = vaultCanvas.getContext('2d');
+  vCtx.fillStyle = 'rgba(15, 23, 42, 0.92)';
+  vCtx.strokeStyle = '#fbbf24';
+  vCtx.lineWidth = 8;
+  vCtx.beginPath();
+  vCtx.roundRect(10, 10, 492, 120, 20);
+  vCtx.fill();
+  vCtx.stroke();
+  vCtx.font = 'bold 36px sans-serif';
+  vCtx.fillStyle = '#fbbf24';
+  vCtx.textAlign = 'center';
+  vCtx.fillText('🏦 CASH VAULT: $0', 256, 58);
+  vCtx.font = 'bold 26px sans-serif';
+  vCtx.fillStyle = '#34d399';
+  vCtx.fillText('[ STEP HERE TO COLLECT ]', 256, 102);
+
+  const vaultTexture = new THREE.CanvasTexture(vaultCanvas);
+  vaultTexture.minFilter = THREE.LinearFilter;
+  const vaultSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: vaultTexture, transparent: true }));
+  vaultSprite.scale.set(7.5, 2.0, 1.0);
+  vaultSprite.position.set(0, 4.2, 0);
+  vaultDockGroup.add(vaultSprite);
+
+  baseGroup.add(vaultDockGroup);
+  baseGroup.userData.vaultCoinMesh = coinMesh;
+  baseGroup.userData.vaultCanvas = vaultCanvas;
+  baseGroup.userData.vaultCtx = vCtx;
+  baseGroup.userData.vaultTexture = vaultTexture;
+
   // 4. Main Control Tower & Terminal (X = -36, Z = -75)
   const towerBase = new THREE.Mesh(new THREE.CylinderGeometry(3.5, 4.8, 24, 12), concreteMat);
   towerBase.position.set(-36, 12, -75);
@@ -1097,6 +1235,8 @@ export function createAirportBase(maxSlots = 36) {
     hangarPads,
     dropZonePosition: new THREE.Vector3(0, 0, 0),
     dropZoneRadius: 6.5,
+    cashVaultPosition: new THREE.Vector3(0, 0, -18),
+    cashVaultRadius: 5.0,
     rebirthAltarPosition: new THREE.Vector3(0, 0, -105),
     rebirthRadius: 7.5,
     shopPosition: new THREE.Vector3(16, 0, -15),

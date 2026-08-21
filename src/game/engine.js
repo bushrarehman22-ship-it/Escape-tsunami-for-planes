@@ -3,11 +3,14 @@ import {
   PLANES_DATABASE,
   ZONES,
   TSUNAMI_TYPES,
-  UPGRADES
+  UPGRADES,
+  PETS_DATABASE,
+  AVATARS_DATABASE
 } from './constants.js';
 import {
   createPlaneMesh,
   createPilotCharacter,
+  createPetMesh,
   createTsunamiMesh,
   createTrenchMesh,
   createAirportBase,
@@ -27,6 +30,7 @@ export class GameEngine {
 
     // Game Entities
     this.player = null;
+    this.petMesh = null;
     this.playerVelocity = new THREE.Vector3();
     this.isGrounded = true;
     this.isDashing = false;
@@ -35,8 +39,8 @@ export class GameEngine {
     this.currentZone = ZONES[0];
 
     // Camera Modes & Orbit state
-    this.cameraMode = 'player'; // 'player' | 'tsunami' | 'drone' | 'tower'
-    this.cameraDistance = 15; // Panned out default (was 9)
+    this.cameraMode = 'player'; // 'player' | 'fpp' | 'tsunami' | 'drone' | 'tower'
+    this.cameraDistance = 15; // Panned out default
     this.cameraYaw = 0; // Horizontal rotation
     this.cameraPitch = 0.38; // Vertical angle
     this.isDraggingMouse = false;
@@ -130,21 +134,21 @@ export class GameEngine {
     // 5. Build Environment
     this.buildWorld();
 
-    // 6. Build Player Avatar
-    this.player = createPilotCharacter(gameState.rebirths);
-    this.player.position.set(0, 0, -5);
-    this.scene.add(this.player);
+    // 6. Build Player Avatar with equipped skin
+    this.rebuildPlayerAvatar();
 
     // 7. Event Listeners
     this.setupEventListeners();
 
-    // 8. Subscribe to state changes (rebirth wings, hangar updates)
+    // 8. Subscribe to state changes
     gameState.subscribe(() => {
       this.updatePlayerAvatar();
       this.updateHangarPads();
+      this.updatePetCompanion();
     });
 
     this.updateHangarPads();
+    this.updatePetCompanion();
     this.spawnInitialPlanes();
 
     // 9. Start Game Loop
@@ -171,6 +175,43 @@ export class GameEngine {
       this.scene.add(trench);
       this.trenches.push(trench);
     });
+  }
+
+  rebuildPlayerAvatar() {
+    const oldPos = this.player ? this.player.position.clone() : new THREE.Vector3(0, 0, -5);
+    const oldRot = this.player ? this.player.rotation.y : 0;
+
+    if (this.player) {
+      this.scene.remove(this.player);
+    }
+
+    this.player = createPilotCharacter(gameState.rebirths, gameState.equippedAvatarId || 'default');
+    this.player.position.copy(oldPos);
+    this.player.rotation.y = oldRot;
+    this.scene.add(this.player);
+
+    this.updatePlayerAvatar();
+  }
+
+  updatePetCompanion() {
+    const petId = gameState.equippedPetId;
+    if (!petId) {
+      if (this.petMesh) {
+        this.scene.remove(this.petMesh);
+        this.petMesh = null;
+      }
+      return;
+    }
+
+    const petDef = PETS_DATABASE.find(p => p.id === petId);
+    if (!petDef) return;
+
+    if (!this.petMesh || this.petMesh.userData.petDef.id !== petId) {
+      if (this.petMesh) this.scene.remove(this.petMesh);
+      this.petMesh = createPetMesh(petDef);
+      this.petMesh.position.copy(this.player.position);
+      this.scene.add(this.petMesh);
+    }
   }
 
   updatePlayerAvatar() {
@@ -377,6 +418,19 @@ export class GameEngine {
         case 'KeyC':
           this.cycleCameraMode();
           break;
+        case 'KeyV':
+          this.setCameraMode(this.cameraMode === 'fpp' ? 'player' : 'fpp');
+          soundEngine.playClick();
+          if (this.uiCallbacks.onNotification) {
+            this.uiCallbacks.onNotification(
+              this.cameraMode === 'fpp' ? '👀 FIRST-PERSON (FPP) MODE ON!' : '📹 THIRD-PERSON (TPP) MODE ON!',
+              'info'
+            );
+          }
+          break;
+        case 'KeyR':
+          this.respawnAtBase();
+          break;
         case 'KeyF':
           if (gameState.admin && gameState.admin.enabled) {
             const isFlying = gameState.adminToggleFlyMode();
@@ -446,10 +500,19 @@ export class GameEngine {
       this.isDraggingMouse = false;
     });
 
-    // Mouse wheel zoom with generous range (6m to 45m)
+    // Mouse wheel zoom with seamless FPP <-> TPP transition
     dom.addEventListener('wheel', (e) => {
       e.preventDefault();
-      this.cameraDistance = Math.max(6, Math.min(45, this.cameraDistance + e.deltaY * 0.015));
+      const newDist = this.cameraDistance + e.deltaY * 0.015;
+      if (newDist <= 1.8 && this.cameraMode !== 'fpp') {
+        this.setCameraMode('fpp');
+        this.cameraDistance = 1.0;
+      } else if (newDist > 1.8 && this.cameraMode === 'fpp') {
+        this.setCameraMode('player');
+        this.cameraDistance = 4.0;
+      } else {
+        this.cameraDistance = Math.max(0.5, Math.min(45, newDist));
+      }
     }, { passive: false });
 
     // Resize
@@ -913,6 +976,18 @@ export class GameEngine {
       }
     }
 
+    // 1.5 🏦 CASH VAULT COLLECTOR DOCK (Z ~ -18)
+    // ONLY collect money when player physically steps on this pad!
+    if (u.cashVaultPosition && playerPos.distanceTo(u.cashVaultPosition) < (u.cashVaultRadius || 5.0)) {
+      if (gameState.uncollectedVaultCash >= 1) {
+        const collected = gameState.collectVaultCash();
+        soundEngine.playCash();
+        if (this.uiCallbacks.onVaultCashCollected) {
+          this.uiCallbacks.onVaultCashCollected(collected);
+        }
+      }
+    }
+
     // 2. Rebirth Altar (Z ~ -105)
     if (playerPos.distanceTo(u.rebirthAltarPosition) < u.rebirthRadius) {
       if (this.uiCallbacks.onNearRebirthAltar) {
@@ -953,17 +1028,35 @@ export class GameEngine {
   // Camera Switching
   setCameraMode(mode) {
     this.cameraMode = mode;
+    // Hide head in FPP to prevent camera clipping
+    if (this.player) {
+      const headGroup = this.player.getObjectByName('headGroup');
+      if (headGroup) {
+        headGroup.visible = (mode !== 'fpp');
+      }
+    }
     if (this.uiCallbacks.onCameraModeChange) {
       this.uiCallbacks.onCameraModeChange(this.cameraMode);
     }
   }
 
   cycleCameraMode() {
-    const modes = ['player', 'tsunami', 'drone', 'tower'];
+    const modes = ['player', 'fpp', 'tsunami', 'drone', 'tower'];
     const currentIdx = modes.indexOf(this.cameraMode);
     const nextMode = modes[(currentIdx + 1) % modes.length];
     this.setCameraMode(nextMode);
     soundEngine.playClick();
+  }
+
+  // Quick Respawn Character back to Base
+  respawnAtBase() {
+    this.player.position.set(0, 0, -5);
+    this.playerVelocity.set(0, 0, 0);
+    this.cameraShake = 0.3;
+    soundEngine.playClick();
+    if (this.uiCallbacks.onNotification) {
+      this.uiCallbacks.onNotification('🛬 Returned to Airport Base!', 'info');
+    }
   }
 
   // Admin Engine Helpers
@@ -1029,7 +1122,27 @@ export class GameEngine {
       this.cameraShake = Math.max(0, this.cameraShake - dt * 2.0);
     }
 
-    if (this.cameraMode === 'tsunami') {
+    if (this.cameraMode === 'fpp') {
+      // 👀 FIRST-PERSON PERSPECTIVE (FPP / FPS Mode)
+      // Camera positioned exactly at pilot eye level
+      const eyePos = this.player.position.clone();
+      eyePos.y += 1.68;
+      this.camera.position.copy(eyePos).add(shakeOffset);
+
+      // Look direction calculated from cameraYaw and pitch
+      const lookDir = new THREE.Vector3(
+        -Math.sin(this.cameraYaw) * Math.cos(this.cameraPitch),
+        -Math.sin(this.cameraPitch),
+        -Math.cos(this.cameraYaw) * Math.cos(this.cameraPitch)
+      ).normalize();
+
+      const lookTarget = eyePos.clone().add(lookDir.multiplyScalar(10));
+      this.camera.lookAt(lookTarget);
+
+      // Body rotates to face forward in FPP
+      this.player.rotation.y = this.cameraYaw + Math.PI;
+
+    } else if (this.cameraMode === 'tsunami') {
       // 🌊 TSUNAMI CAM: Follows the wave dynamically!
       if (this.activeWave && this.activeWave.mesh) {
         const wz = this.activeWave.z;
@@ -1101,9 +1214,52 @@ export class GameEngine {
     }
   }
 
-  // Passive Income & Pad Animation
+  // Passive Income & Pad Animation & Pet Animation
   updateIncomeAndPads(dt) {
     gameState.tickIncome(dt);
+
+    // Animate Pet Companion (smoothly floats alongside player)
+    if (this.petMesh && this.player) {
+      const targetPetPos = this.player.position.clone();
+      targetPetPos.x += 1.6;
+      targetPetPos.y += 1.8 + Math.sin(Date.now() * 0.005) * 0.25;
+      targetPetPos.z -= 0.6;
+      this.petMesh.position.lerp(targetPetPos, Math.min(1.0, dt * 10));
+      this.petMesh.rotation.y += dt * 1.5;
+
+      const animParts = this.petMesh.userData.animParts || [];
+      animParts.forEach(part => {
+        part.rotation.y += dt * 12;
+      });
+    }
+
+    // Update 3D Cash Vault Dock Billboard & Hologram
+    if (this.airportBase) {
+      const u = this.airportBase.userData;
+      if (u.vaultCoinMesh) {
+        u.vaultCoinMesh.rotation.z += dt * 2.0;
+      }
+      if (u.vaultCanvas && u.vaultCtx && u.vaultTexture) {
+        const vCtx = u.vaultCtx;
+        const vaultCash = Math.floor(gameState.uncollectedVaultCash);
+        vCtx.clearRect(0, 0, 512, 140);
+        vCtx.fillStyle = 'rgba(15, 23, 42, 0.92)';
+        vCtx.strokeStyle = '#fbbf24';
+        vCtx.lineWidth = 8;
+        vCtx.beginPath();
+        vCtx.roundRect(10, 10, 492, 120, 20);
+        vCtx.fill();
+        vCtx.stroke();
+        vCtx.font = 'bold 34px sans-serif';
+        vCtx.fillStyle = vaultCash > 0 ? '#34d399' : '#fbbf24';
+        vCtx.textAlign = 'center';
+        vCtx.fillText(`🏦 CASH VAULT: $${vaultCash.toLocaleString()}`, 256, 58);
+        vCtx.font = 'bold 24px sans-serif';
+        vCtx.fillStyle = vaultCash > 0 ? '#facc15' : '#94a3b8';
+        vCtx.fillText(vaultCash > 0 ? '[ STEP ON DOCK TO COLLECT ]' : '[ PLANES ACCUMULATING... ]', 256, 102);
+        u.vaultTexture.needsUpdate = true;
+      }
+    }
 
     this.incomeTimer += dt;
     if (this.incomeTimer >= 1.0) {

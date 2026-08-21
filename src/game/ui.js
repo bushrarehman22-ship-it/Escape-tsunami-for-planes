@@ -39,7 +39,7 @@ export class GameUI {
       <div id="game-hud" class="hud-overlay select-none pointer-events-none">
         <!-- Top Stats Bar -->
         <header class="top-bar pointer-events-auto flex items-center justify-between px-4 py-3 gap-2">
-          <!-- Left: Money & Income & Admin Badge -->
+          <!-- Left: Money & Income & Vault Counter & Admin Badge -->
           <div class="flex items-center gap-2 sm:gap-3 flex-wrap">
             <!-- Owner Admin Pill -->
             <button id="hud-admin-badge" class="stat-pill bg-gradient-to-r from-amber-500/30 via-red-600/30 to-purple-600/30 border-amber-400/80 shadow-amber-500/20 hover:scale-105 cursor-pointer transition-transform">
@@ -50,15 +50,26 @@ export class GameUI {
               </div>
             </button>
 
+            <!-- Pocket Wallet Cash -->
             <div class="stat-pill money-pill">
               <span class="stat-icon text-yellow-400">💵</span>
               <div class="flex flex-col">
-                <span class="text-xs text-slate-300 font-semibold tracking-wider uppercase">Cash</span>
+                <span class="text-xs text-slate-300 font-semibold tracking-wider uppercase">Wallet</span>
                 <span id="hud-money" class="text-lg font-black text-white tracking-wide">$0</span>
               </div>
             </div>
 
-            <div class="stat-pill income-pill">
+            <!-- Tycoon Cash Vault Dock Counter (Step on dock to collect) -->
+            <div class="stat-pill bg-amber-950/80 border-amber-500/80 shadow-lg cursor-pointer" id="hud-vault-pill" title="Accumulated from planes in hangar! Step on the Golden Dock at base to collect!">
+              <span class="stat-icon text-amber-400">🏦</span>
+              <div class="flex flex-col text-left">
+                <span class="text-[10px] text-amber-300 font-bold uppercase tracking-wider">Vault Dock</span>
+                <span id="hud-vault-cash" class="text-sm font-black text-emerald-400">$0 Ready</span>
+              </div>
+            </div>
+
+            <!-- Income Rate -->
+            <div class="stat-pill income-pill hidden sm:flex">
               <span class="stat-icon text-emerald-400">⚡</span>
               <div class="flex flex-col">
                 <span class="text-xs text-slate-300 font-semibold tracking-wider uppercase">Income</span>
@@ -89,9 +100,19 @@ export class GameUI {
           <!-- Right: Action Menu Buttons -->
           <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap">
             <!-- Camera Mode Switcher Pill -->
-            <button id="btn-switch-camera" class="menu-btn bg-cyan-700 hover:bg-cyan-600 text-white shadow-cyan-500/20" title="Switch Camera View (HotKey: C)">
+            <button id="btn-switch-camera" class="menu-btn bg-cyan-700 hover:bg-cyan-600 text-white shadow-cyan-500/20" title="Switch Camera View (HotKey: C or V for FPP)">
               <span id="hud-cam-icon">📹</span>
               <span id="hud-cam-label" class="font-bold text-xs uppercase">Cam: Player (C)</span>
+            </button>
+
+            <!-- Respawn Character / Return to Base Button -->
+            <button id="btn-respawn-base" class="menu-btn bg-slate-800 hover:bg-slate-700 text-amber-300 border-slate-600" title="Quick Return / Respawn at Base (HotKey: R)">
+              <span>🛬</span> <span class="hidden sm:inline font-bold text-xs uppercase">Base (R)</span>
+            </button>
+
+            <!-- Pets & Pilot Avatars Add-Ons Shop Button -->
+            <button id="btn-menu-addons" class="menu-btn bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white shadow-pink-500/20" title="Pets & Avatars Customization Shop">
+              <span>🐶</span> <span class="hidden sm:inline font-bold text-xs uppercase">Pets & Skins</span>
             </button>
 
             <!-- Airplanes Dealership Shop Button -->
@@ -294,6 +315,33 @@ export class GameUI {
       });
     }
 
+    // Pets & Skins Add-Ons Shop
+    const addonsBtn = document.getElementById('btn-menu-addons');
+    if (addonsBtn) {
+      addonsBtn.addEventListener('click', () => {
+        soundEngine.playClick();
+        this.openAddonsModal();
+      });
+    }
+
+    // Respawn Character / Return to Base
+    const respawnBtn = document.getElementById('btn-respawn-base');
+    if (respawnBtn) {
+      respawnBtn.addEventListener('click', () => {
+        this.engine.respawnAtBase();
+      });
+    }
+
+    // Vault Pill click tip
+    const vaultPill = document.getElementById('hud-vault-pill');
+    if (vaultPill) {
+      vaultPill.addEventListener('click', () => {
+        const vaultAmt = Math.floor(gameState.uncollectedVaultCash);
+        soundEngine.playClick();
+        this.showToast(`🏦 Cash Vault: $${vaultAmt.toLocaleString()} ready! Step on the Golden Dock at Airport Base to collect!`, 'info');
+      });
+    }
+
     // Airplanes Dealership Shop
     const planesShopBtn = document.getElementById('btn-menu-planesshop');
     if (planesShopBtn) {
@@ -456,6 +504,10 @@ export class GameUI {
     if (!camLabel || !camIcon) return;
 
     switch (mode) {
+      case 'fpp':
+        camIcon.textContent = '👀';
+        camLabel.textContent = 'Cam: 1st Person (V)';
+        break;
       case 'tsunami':
         camIcon.textContent = '🌊';
         camLabel.textContent = 'Cam: Tsunami (C)';
@@ -471,7 +523,7 @@ export class GameUI {
       case 'player':
       default:
         camIcon.textContent = '📹';
-        camLabel.textContent = 'Cam: Player (C)';
+        camLabel.textContent = 'Cam: 3rd Person (C)';
         break;
     }
   }
@@ -497,10 +549,15 @@ export class GameUI {
 
   // Update HUD every tick
   updateHUD(tickData) {
-    // 1. Money & Income
+    // 1. Money & Income & Vault Cash
     document.getElementById('hud-money').textContent = `$${Math.floor(gameState.money).toLocaleString()}`;
     const incPerSec = gameState.getTotalIncomePerSecond();
     document.getElementById('hud-income').textContent = `+$${incPerSec.toLocaleString()}/s`;
+    const vaultCash = Math.floor(gameState.uncollectedVaultCash);
+    const vaultEl = document.getElementById('hud-vault-cash');
+    if (vaultEl) {
+      vaultEl.textContent = `$${vaultCash.toLocaleString()} Ready`;
+    }
 
     // 2. Rebirth
     const rTier = gameState.getRebirthTier();
@@ -703,6 +760,243 @@ export class GameUI {
     modalsLayer.classList.add('hidden');
     this.activeModal = false;
     soundEngine.playClick();
+  }
+
+  // -------------------------------------------------------------
+  // Pets & Pilot Avatars Add-Ons Customization Shop Modal
+  // -------------------------------------------------------------
+  openAddonsModal() {
+    let activeTab = 'pets'; // 'pets' | 'avatars'
+
+    const renderAddons = () => {
+      let contentHtml = '';
+
+      if (activeTab === 'pets') {
+        let petCards = '';
+        PETS_DATABASE.forEach(pet => {
+          const isOwned = gameState.unlockedPetIds.has(pet.id);
+          const isEquipped = gameState.equippedPetId === pet.id;
+          const canAfford = gameState.money >= pet.cost;
+
+          petCards += `
+            <div class="p-4 rounded-xl border flex flex-col justify-between transition-all ${
+              isEquipped 
+                ? 'bg-purple-950/80 border-purple-500 shadow-lg shadow-purple-500/20'
+                : 'bg-slate-900/90 border-slate-700 hover:border-slate-600'
+            }">
+              <div>
+                <div class="flex items-center justify-between">
+                  <div class="text-3xl p-2 rounded-xl bg-slate-950 border border-slate-800">${pet.icon}</div>
+                  <span class="text-xs px-2 py-0.5 rounded-full font-bold uppercase ${
+                    isEquipped ? 'bg-purple-600 text-white' : isOwned ? 'bg-emerald-900/60 text-emerald-300' : 'bg-slate-800 text-slate-400'
+                  }">
+                    ${isEquipped ? 'EQUIPPED' : isOwned ? 'OWNED' : 'LOCKED'}
+                  </span>
+                </div>
+                <h4 class="font-black text-base text-white mt-2">${pet.name}</h4>
+                <p class="text-xs text-slate-400 mt-1">${pet.description}</p>
+                <div class="mt-2 flex flex-wrap gap-2 text-[11px] font-semibold text-sky-300">
+                  <span class="px-2 py-0.5 bg-slate-800 rounded">Income: +${Math.round((pet.incomeMultiplier - 1) * 100)}%</span>
+                  <span class="px-2 py-0.5 bg-slate-800 rounded">Magnet: +${pet.magnetBonus}m</span>
+                </div>
+              </div>
+
+              <div class="mt-4 pt-2 border-t border-slate-800">
+                <button 
+                  data-pet-action="${isEquipped ? 'unequip' : isOwned ? 'equip' : 'buy'}"
+                  data-pet-id="${pet.id}"
+                  class="btn-pet-action w-full py-2.5 rounded-xl font-black text-xs uppercase tracking-wider transition-all cursor-pointer ${
+                    isEquipped
+                      ? 'bg-purple-700 text-purple-200 hover:bg-purple-600'
+                      : isOwned
+                        ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg'
+                        : canAfford
+                          ? 'bg-amber-600 hover:bg-amber-500 text-white shadow-lg shadow-amber-600/30 active:scale-95'
+                          : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
+                  }"
+                  ${!isOwned && !canAfford ? 'disabled' : ''}
+                >
+                  ${isEquipped ? 'UNEQUIP PET' : isOwned ? 'EQUIP PET' : `BUY • $${pet.cost.toLocaleString()}`}
+                </button>
+              </div>
+            </div>
+          `;
+        });
+
+        contentHtml = `
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[58vh] overflow-y-auto pr-1">
+            ${petCards}
+          </div>
+        `;
+      } else {
+        // Avatars Tab
+        let avatarCards = '';
+        AVATARS_DATABASE.forEach(avatar => {
+          const isOwned = gameState.unlockedAvatarIds.has(avatar.id);
+          const isEquipped = gameState.equippedAvatarId === avatar.id;
+          const canAfford = gameState.money >= avatar.cost;
+
+          avatarCards += `
+            <div class="p-4 rounded-xl border flex flex-col justify-between transition-all ${
+              isEquipped 
+                ? 'bg-cyan-950/80 border-cyan-500 shadow-lg shadow-cyan-500/20'
+                : 'bg-slate-900/90 border-slate-700 hover:border-slate-600'
+            }">
+              <div>
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <span class="w-4 h-4 rounded-full" style="background: ${avatar.helmetColor}; border: 1px solid #fff;"></span>
+                    <span class="w-4 h-4 rounded-full" style="background: ${avatar.suitColor}; border: 1px solid #fff;"></span>
+                    <span class="w-4 h-4 rounded-full" style="background: ${avatar.trimColor}; border: 1px solid #fff;"></span>
+                  </div>
+                  <span class="text-xs px-2 py-0.5 rounded-full font-bold uppercase ${
+                    isEquipped ? 'bg-cyan-600 text-white' : isOwned ? 'bg-emerald-900/60 text-emerald-300' : 'bg-slate-800 text-slate-400'
+                  }">
+                    ${isEquipped ? 'EQUIPPED' : isOwned ? 'OWNED' : 'LOCKED'}
+                  </span>
+                </div>
+                <h4 class="font-black text-base text-white mt-2">${avatar.name}</h4>
+                <p class="text-xs text-slate-400 mt-1">${avatar.description}</p>
+              </div>
+
+              <div class="mt-4 pt-2 border-t border-slate-800">
+                <button 
+                  data-avatar-action="${isEquipped ? 'equipped' : isOwned ? 'equip' : 'buy'}"
+                  data-avatar-id="${avatar.id}"
+                  class="btn-avatar-action w-full py-2.5 rounded-xl font-black text-xs uppercase tracking-wider transition-all cursor-pointer ${
+                    isEquipped
+                      ? 'bg-cyan-800 text-cyan-200 cursor-default'
+                      : isOwned
+                        ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg'
+                        : canAfford
+                          ? 'bg-sky-600 hover:bg-sky-500 text-white shadow-lg shadow-sky-600/30 active:scale-95'
+                          : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
+                  }"
+                  ${(!isOwned && !canAfford) || isEquipped ? 'disabled' : ''}
+                >
+                  ${isEquipped ? 'CURRENT SKIN' : isOwned ? 'EQUIP SKIN' : `BUY • $${avatar.cost.toLocaleString()}`}
+                </button>
+              </div>
+            </div>
+          `;
+        });
+
+        contentHtml = `
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[58vh] overflow-y-auto pr-1">
+            ${avatarCards}
+          </div>
+        `;
+      }
+
+      return `
+        <div class="modal-header flex items-center justify-between pb-3 border-b border-pink-800">
+          <div class="flex items-center gap-2">
+            <span class="text-2xl">🐶</span>
+            <div>
+              <h2 class="text-lg font-black text-pink-300 uppercase tracking-wide">Pets & Pilot Avatars Shop</h2>
+              <div class="text-xs text-slate-400">Equip companion drones that boost income and custom 3D pilot skins!</div>
+            </div>
+          </div>
+          <button id="modal-close-btn" class="text-slate-400 hover:text-white text-xl p-1 font-mono">✕</button>
+        </div>
+
+        <!-- Tabs -->
+        <div class="flex gap-2 my-3">
+          <button id="tab-pets" class="px-4 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider ${
+            activeTab === 'pets' ? 'bg-pink-600 text-white shadow-lg' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+          }">
+            🐶 Companion Drones & Pets
+          </button>
+          <button id="tab-avatars" class="px-4 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider ${
+            activeTab === 'avatars' ? 'bg-purple-600 text-white shadow-lg' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+          }">
+            🧑‍✈️ Pilot Avatars & Skins
+          </button>
+        </div>
+
+        <div class="modal-body py-1">
+          ${contentHtml}
+        </div>
+
+        <div class="modal-footer pt-3 border-t border-slate-700 flex justify-between items-center text-xs text-slate-400">
+          <span>Available Cash: <b class="text-amber-400 text-sm">$${Math.floor(gameState.money).toLocaleString()}</b></span>
+          <span>Tip: Phoenix birds grant a free second chance from tsunamis!</span>
+        </div>
+      `;
+    };
+
+    const updateView = () => {
+      document.getElementById('modal-content').innerHTML = renderAddons();
+      bindEvents();
+    };
+
+    const bindEvents = () => {
+      document.getElementById('modal-close-btn').addEventListener('click', () => this.closeModal());
+      document.getElementById('tab-pets').addEventListener('click', () => {
+        activeTab = 'pets';
+        updateView();
+      });
+      document.getElementById('tab-avatars').addEventListener('click', () => {
+        activeTab = 'avatars';
+        updateView();
+      });
+
+      // Pet actions
+      document.querySelectorAll('.btn-pet-action').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const action = btn.getAttribute('data-pet-action');
+          const petId = btn.getAttribute('data-pet-id');
+          const petDef = PETS_DATABASE.find(p => p.id === petId);
+
+          if (action === 'buy' && petDef) {
+            if (gameState.buyPet(petDef)) {
+              soundEngine.playUpgrade();
+              confetti({ particleCount: 60 });
+              this.showToast(`🐶 Unlocked & Equipped ${petDef.name}!`, 'success');
+              updateView();
+            }
+          } else if (action === 'equip') {
+            gameState.equipPet(petId);
+            soundEngine.playClick();
+            this.showToast(`🐶 Equipped ${petDef.name}!`, 'info');
+            updateView();
+          } else if (action === 'unequip') {
+            gameState.equipPet(null);
+            soundEngine.playClick();
+            this.showToast('🐶 Unequipped pet', 'info');
+            updateView();
+          }
+        });
+      });
+
+      // Avatar actions
+      document.querySelectorAll('.btn-avatar-action').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const action = btn.getAttribute('data-avatar-action');
+          const avatarId = btn.getAttribute('data-avatar-id');
+          const avatarDef = AVATARS_DATABASE.find(a => a.id === avatarId);
+
+          if (action === 'buy' && avatarDef) {
+            if (gameState.buyAvatar(avatarDef)) {
+              soundEngine.playUpgrade();
+              confetti({ particleCount: 60 });
+              this.engine.rebuildPlayerAvatar();
+              this.showToast(`🧑‍✈️ Unlocked & Equipped ${avatarDef.name} Skin!`, 'success');
+              updateView();
+            }
+          } else if (action === 'equip') {
+            gameState.equipAvatar(avatarId);
+            soundEngine.playClick();
+            this.engine.rebuildPlayerAvatar();
+            this.showToast(`🧑‍✈️ Equipped ${avatarDef.name} Skin!`, 'info');
+            updateView();
+          }
+        });
+      });
+    };
+
+    this.openModal(renderAddons());
+    bindEvents();
   }
 
   // -------------------------------------------------------------

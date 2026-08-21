@@ -507,6 +507,134 @@ export const SPEED_UPGRADES = {
   }
 };
 
+// Pets & Companions Database
+export const PETS_DATABASE = [
+  {
+    id: 'copilot_drone',
+    name: 'Copilot Quad-Drone',
+    icon: '🚁',
+    cost: 5000,
+    incomeMultiplier: 1.25,
+    magnetBonus: 2.0,
+    color: '#38bdf8',
+    glowColor: '#0284c7',
+    description: 'Autonomous companion drone boosting base plane income by +25%!'
+  },
+  {
+    id: 'falcon_drone',
+    name: 'Robo-Falcon Recon',
+    icon: '🦅',
+    cost: 35000,
+    incomeMultiplier: 1.6,
+    magnetBonus: 6.0,
+    color: '#f59e0b',
+    glowColor: '#d97706',
+    description: 'High-speed robotic bird with mega tractor beam pulling planes from 6m away!'
+  },
+  {
+    id: 'phoenix_bird',
+    name: 'Cosmic Phoenix Flame',
+    icon: '🔥',
+    cost: 250000,
+    incomeMultiplier: 2.2,
+    magnetBonus: 8.0,
+    hasShield: true,
+    color: '#ef4444',
+    glowColor: '#dc2626',
+    description: 'Mythical flame bird that shields you once from any tsunami wipeout!'
+  },
+  {
+    id: 'ufo_drone',
+    name: 'Tachyon Plasma Saucer',
+    icon: '🛸',
+    cost: 1800000,
+    incomeMultiplier: 3.5,
+    magnetBonus: 12.0,
+    color: '#a855f7',
+    glowColor: '#9333ea',
+    description: 'Alien gravity drone warping spacetime to give +250% income multiplier!'
+  },
+  {
+    id: 'star_sprite',
+    name: 'Celestial Star Sprite',
+    icon: '⭐',
+    cost: 15000000,
+    incomeMultiplier: 6.0,
+    magnetBonus: 18.0,
+    color: '#fbbf24',
+    glowColor: '#f59e0b',
+    description: 'Living stellar deity granting godlike income boost & cosmic trail aura!'
+  }
+];
+
+// Pilot Avatars & Skins Database
+export const AVATARS_DATABASE = [
+  {
+    id: 'default',
+    name: 'Classic Orange Aviator',
+    cost: 0,
+    helmetColor: '#f97316',
+    suitColor: '#1e293b',
+    trimColor: '#38bdf8',
+    visorColor: '#0284c7',
+    description: 'Standard issue flight cadet uniform.'
+  },
+  {
+    id: 'golden_vip',
+    name: '24K Golden VIP Ace',
+    cost: 25000,
+    helmetColor: '#fbbf24',
+    suitColor: '#d97706',
+    trimColor: '#fef08a',
+    visorColor: '#fde047',
+    metalness: 0.9,
+    description: 'Gleaming pure gold luxury pilot flight armor.'
+  },
+  {
+    id: 'cyber_neon',
+    name: 'Cyberpunk Neon Phantom',
+    cost: 120000,
+    helmetColor: '#0f172a',
+    suitColor: '#090d16',
+    trimColor: '#06b6d4',
+    visorColor: '#22d3ee',
+    emissiveIntensity: 1.5,
+    description: 'High-tech stealth suit with glowing cyan tron circuits.'
+  },
+  {
+    id: 'astronaut',
+    name: 'Orbital Space Explorer',
+    cost: 750000,
+    helmetColor: '#ffffff',
+    suitColor: '#f1f5f9',
+    trimColor: '#ef4444',
+    visorColor: '#f59e0b',
+    metalness: 0.8,
+    description: 'NASA-grade pressure suit with reflective gold radiation visor.'
+  },
+  {
+    id: 'crimson_baron',
+    name: 'Scarlet Baron Elite',
+    cost: 3500000,
+    helmetColor: '#dc2626',
+    suitColor: '#7f1d1d',
+    trimColor: '#fbbf24',
+    visorColor: '#ef4444',
+    description: 'Regal crimson uniform of the legendary sky ace.'
+  },
+  {
+    id: 'void_emperor',
+    name: 'Cosmic Void Sovereign',
+    cost: 25000000,
+    helmetColor: '#3b0764',
+    suitColor: '#1e1b4b',
+    trimColor: '#c084fc',
+    visorColor: '#e879f9',
+    emissiveIntensity: 2.0,
+    description: 'Dark matter robes infused with the power of dying stars.'
+  }
+];
+
 export const UPGRADES = {
   speed: {
     id: 'speed',

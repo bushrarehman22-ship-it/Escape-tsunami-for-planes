@@ -1,10 +1,18 @@
-import { PLANES_DATABASE, REBIRTH_TIERS, UPGRADES, SPEED_UPGRADES } from './constants.js';
+import {
+  PLANES_DATABASE,
+  REBIRTH_TIERS,
+  UPGRADES,
+  SPEED_UPGRADES,
+  PETS_DATABASE,
+  AVATARS_DATABASE
+} from './constants.js';
 
 const STORAGE_KEY = 'ESCAPE_TSUNAMI_PLANES_SAVE_V1';
 
 class GameState {
   constructor() {
-    this.money = 0;
+    this.money = 0; // Pocket wallet cash
+    this.uncollectedVaultCash = 0; // Tycoon Bank Dock accumulated cash
     this.rebirths = 0;
     this.rebirthTokens = 0;
     this.upgrades = {
@@ -24,6 +32,18 @@ class GameState {
     this.hangarPlanes = []; // Array of { id, planeDef, level, golden }
     this.carriedPlanes = []; // Array of planeDef
     this.unlockedPlaneIds = new Set(['paper_plane']);
+    this.unlockedPetIds = new Set();
+    this.equippedPetId = null;
+    this.unlockedAvatarIds = new Set(['default']);
+    this.equippedAvatarId = 'default';
+    this.stats = {
+      totalMoneyEarned: 0,
+      totalPlanesRescued: 0,
+      tsunamisEscaped: 0,
+      maxDistanceReached: 0,
+      timesWipedOut: 0,
+      rebirthCount: 0
+    };
     this.stats = {
       totalMoneyEarned: 0,
       totalPlanesRescued: 0,
@@ -84,7 +104,78 @@ class GameState {
 
   getIncomeMultiplier() {
     const tier = this.getRebirthTier();
-    return tier.multiplier || 1.0;
+    let mult = tier.multiplier || 1.0;
+    // Pet boost
+    if (this.equippedPetId) {
+      const pet = PETS_DATABASE.find(p => p.id === this.equippedPetId);
+      if (pet && pet.incomeMultiplier) {
+        mult *= pet.incomeMultiplier;
+      }
+    }
+    return mult;
+  }
+
+  // Ticking income into Vault Cash Collector Dock
+  tickIncome(dt) {
+    const perSec = this.getTotalIncomePerSecond();
+    if (perSec > 0) {
+      const earned = perSec * dt;
+      this.uncollectedVaultCash += earned;
+    }
+  }
+
+  // Collect Vault Cash when player physically steps on the Money Collection Dock
+  collectVaultCash() {
+    if (this.uncollectedVaultCash <= 0) return 0;
+    const collected = Math.floor(this.uncollectedVaultCash);
+    this.uncollectedVaultCash = 0;
+    this.money += collected;
+    this.stats.totalMoneyEarned += collected;
+    this.save();
+    this.notify();
+    return collected;
+  }
+
+  // Pets Management
+  buyPet(petDef) {
+    if (this.money < petDef.cost) return false;
+    this.money -= petDef.cost;
+    this.unlockedPetIds.add(petDef.id);
+    this.equippedPetId = petDef.id;
+    this.save();
+    this.notify();
+    return true;
+  }
+
+  equipPet(petId) {
+    if (this.unlockedPetIds.has(petId) || petId === null) {
+      this.equippedPetId = petId;
+      this.save();
+      this.notify();
+      return true;
+    }
+    return false;
+  }
+
+  // Avatars Management
+  buyAvatar(avatarDef) {
+    if (this.money < avatarDef.cost) return false;
+    this.money -= avatarDef.cost;
+    this.unlockedAvatarIds.add(avatarDef.id);
+    this.equippedAvatarId = avatarDef.id;
+    this.save();
+    this.notify();
+    return true;
+  }
+
+  equipAvatar(avatarId) {
+    if (this.unlockedAvatarIds.has(avatarId)) {
+      this.equippedAvatarId = avatarId;
+      this.save();
+      this.notify();
+      return true;
+    }
+    return false;
   }
 
   getUpgradeValue(upgradeKey) {
@@ -476,12 +567,17 @@ class GameState {
     try {
       const data = {
         money: this.money,
+        uncollectedVaultCash: this.uncollectedVaultCash,
         rebirths: this.rebirths,
         rebirthTokens: this.rebirthTokens,
         upgrades: this.upgrades,
         speedUpgrades: this.speedUpgrades,
         hangarPlanes: this.hangarPlanes,
         unlockedPlaneIds: Array.from(this.unlockedPlaneIds),
+        unlockedPetIds: Array.from(this.unlockedPetIds),
+        equippedPetId: this.equippedPetId,
+        unlockedAvatarIds: Array.from(this.unlockedAvatarIds),
+        equippedAvatarId: this.equippedAvatarId,
         stats: this.stats,
         settings: this.settings
       };
@@ -497,12 +593,17 @@ class GameState {
       if (!raw) return;
       const data = JSON.parse(raw);
       if (data.money !== undefined) this.money = data.money;
+      if (data.uncollectedVaultCash !== undefined) this.uncollectedVaultCash = data.uncollectedVaultCash;
       if (data.rebirths !== undefined) this.rebirths = data.rebirths;
       if (data.rebirthTokens !== undefined) this.rebirthTokens = data.rebirthTokens;
       if (data.upgrades) this.upgrades = { ...this.upgrades, ...data.upgrades };
       if (data.speedUpgrades) this.speedUpgrades = { ...this.speedUpgrades, ...data.speedUpgrades };
       if (Array.isArray(data.hangarPlanes)) this.hangarPlanes = data.hangarPlanes;
       if (Array.isArray(data.unlockedPlaneIds)) this.unlockedPlaneIds = new Set(data.unlockedPlaneIds);
+      if (Array.isArray(data.unlockedPetIds)) this.unlockedPetIds = new Set(data.unlockedPetIds);
+      if (data.equippedPetId !== undefined) this.equippedPetId = data.equippedPetId;
+      if (Array.isArray(data.unlockedAvatarIds)) this.unlockedAvatarIds = new Set(data.unlockedAvatarIds);
+      if (data.equippedAvatarId !== undefined) this.equippedAvatarId = data.equippedAvatarId;
       if (data.stats) this.stats = { ...this.stats, ...data.stats };
       if (data.settings) this.settings = { ...this.settings, ...data.settings };
     } catch (e) {

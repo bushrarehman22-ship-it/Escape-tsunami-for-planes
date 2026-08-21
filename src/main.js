@@ -29,6 +29,16 @@ document.addEventListener('DOMContentLoaded', () => {
         ui.showToast(`✈️ Rescued ${planeDef.name}! Bring to Airport Base to generate $${planeDef.baseIncome}/s!`, 'info');
       }
     },
+    onVaultCashCollected: (amount) => {
+      if (ui) {
+        confetti({
+          particleCount: 80,
+          spread: 70,
+          origin: { y: 0.8 }
+        });
+        ui.showToast(`💰 CHA-CHING! Collected +$${amount.toLocaleString()} from Cash Vault Dock!`, 'success');
+      }
+    },
     onPlanesDeposited: (result) => {
       if (ui) {
         confetti({
