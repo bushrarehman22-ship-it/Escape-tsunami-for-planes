@@ -203,6 +203,12 @@ export class GameEngine {
         wingsGroup.add(leftWing, rightWing);
       }
     }
+
+    // Update Crown visibility based on Admin Mode enabled status
+    const crown = this.player.getObjectByName('adminCrown');
+    if (crown) {
+      crown.visible = !!(gameState.admin && gameState.admin.enabled);
+    }
   }
 
   updateHangarPads() {
@@ -372,13 +378,15 @@ export class GameEngine {
           this.cycleCameraMode();
           break;
         case 'KeyF':
-          const isFlying = gameState.adminToggleFlyMode();
-          soundEngine.playUpgrade();
-          if (this.uiCallbacks.onNotification) {
-            this.uiCallbacks.onNotification(
-              isFlying ? '🦅 ADMIN FLIGHT MODE ON! (Space to fly UP, Shift to fly DOWN)' : '🛬 Admin Flight Mode OFF',
-              'info'
-            );
+          if (gameState.admin && gameState.admin.enabled) {
+            const isFlying = gameState.adminToggleFlyMode();
+            soundEngine.playUpgrade();
+            if (this.uiCallbacks.onNotification) {
+              this.uiCallbacks.onNotification(
+                isFlying ? '🦅 ADMIN FLIGHT MODE ON! (Space to fly UP, Shift to fly DOWN)' : '🛬 Admin Flight Mode OFF',
+                'info'
+              );
+            }
           }
           break;
       }
@@ -564,7 +572,7 @@ export class GameEngine {
     }
 
     // Admin Flight Mode Physics vs Standard Gravity
-    if (gameState.admin && gameState.admin.flyMode) {
+    if (gameState.admin && gameState.admin.enabled && gameState.admin.flyMode) {
       this.isGrounded = false;
       const flySpeed = currentSpeed * 0.9;
       if (this.keys.jump) {
@@ -590,10 +598,13 @@ export class GameEngine {
       }
     }
 
-    // Rotate Golden Admin Crown
+    // Rotate Golden Admin Crown (only if enabled)
     const crown = this.player.getObjectByName('adminCrown');
     if (crown) {
-      crown.rotation.y += dt * 1.5;
+      crown.visible = !!(gameState.admin && gameState.admin.enabled);
+      if (crown.visible) {
+        crown.rotation.y += dt * 1.5;
+      }
     }
 
     // Dash Timers
@@ -817,7 +828,7 @@ export class GameEngine {
     // Wave strikes when wave.z reaches player.z
     if (wave.z <= this.player.position.z + 4 && wave.z >= this.player.position.z - 12) {
       // Check if player is safely tucked in a trench or has Admin Godmode
-      const isPlayerSafe = this.isPlayerInSafeZone() || (gameState.admin && gameState.admin.godmode);
+      const isPlayerSafe = this.isPlayerInSafeZone() || (gameState.admin && gameState.admin.enabled && gameState.admin.godmode);
 
       if (!isPlayerSafe) {
         // Player is wiped out by tsunami!
@@ -830,7 +841,7 @@ export class GameEngine {
           const bonusReward = 150 * gameState.getIncomeMultiplier();
           gameState.addMoney(bonusReward);
           if (this.uiCallbacks.onNotification) {
-            const msg = gameState.admin && gameState.admin.godmode
+            const msg = gameState.admin && gameState.admin.enabled && gameState.admin.godmode
               ? `🛡️ GODMODE SHIELD! Deflected Tsunami! +$${bonusReward.toLocaleString()}`
               : `🌊 SURVIVED TSUNAMI! Bonus +$${bonusReward.toLocaleString()}`;
             this.uiCallbacks.onNotification(msg, 'success');

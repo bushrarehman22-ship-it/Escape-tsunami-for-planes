@@ -533,6 +533,35 @@ export class GameUI {
       dashStatusEl.className = 'text-xs font-black text-emerald-400';
     }
 
+    // 5. Admin Mode HUD Sync (Show / Hide Admin Elements)
+    const isAdminOn = !!(gameState.admin && gameState.admin.enabled);
+    const adminBadge = document.getElementById('hud-admin-badge');
+    if (adminBadge) {
+      if (isAdminOn) {
+        adminBadge.classList.remove('hidden');
+      } else {
+        adminBadge.classList.add('hidden');
+      }
+    }
+
+    const adminMenuBtn = document.getElementById('btn-menu-admin');
+    if (adminMenuBtn) {
+      if (isAdminOn) {
+        adminMenuBtn.classList.remove('hidden');
+      } else {
+        adminMenuBtn.classList.add('hidden');
+      }
+    }
+
+    const adminQuickBar = document.querySelector('.admin-quick-bar');
+    if (adminQuickBar) {
+      if (isAdminOn) {
+        adminQuickBar.classList.remove('hidden');
+      } else {
+        adminQuickBar.classList.add('hidden');
+      }
+    }
+
     // 6. Camera Label Sync
     this.updateCameraLabel(this.engine.cameraMode);
 
@@ -1422,9 +1451,17 @@ export class GameUI {
       <div class="modal-header flex items-center justify-between pb-3 border-b border-red-800/80">
         <div class="flex items-center gap-2">
           <span class="text-2xl">⚡</span>
-          <h2 class="text-xl font-black text-red-400 tracking-wide uppercase">Admin Developer Commands</h2>
+          <div>
+            <h2 class="text-xl font-black text-red-400 tracking-wide uppercase">Admin Developer Commands</h2>
+            <div class="text-xs text-slate-400">Owner Access & Server Control</div>
+          </div>
         </div>
-        <button id="modal-close-btn" class="text-slate-400 hover:text-white text-xl p-1 font-mono">✕</button>
+        <div class="flex items-center gap-2">
+          <button id="btn-admin-turn-off" class="px-3 py-1 rounded-lg bg-red-900/80 hover:bg-red-800 border border-red-700 text-xs font-bold text-red-200 cursor-pointer">
+            🚫 Disable Admin Mode
+          </button>
+          <button id="modal-close-btn" class="text-slate-400 hover:text-white text-xl p-1 font-mono">✕</button>
+        </div>
       </div>
 
       <div class="modal-body py-4 flex flex-col gap-4 max-h-[68vh] overflow-y-auto pr-1">
@@ -1547,6 +1584,16 @@ export class GameUI {
 
     const bindEvents = () => {
       document.getElementById('modal-close-btn').addEventListener('click', () => this.closeModal());
+
+      const btnTurnOff = document.getElementById('btn-admin-turn-off');
+      if (btnTurnOff) {
+        btnTurnOff.addEventListener('click', () => {
+          gameState.toggleAdminEnabled();
+          soundEngine.playClick();
+          this.showToast('🚫 Admin Mode Turned OFF (Legit Play Mode)! You can re-enable it anytime in Settings ⚙️.', 'info');
+          this.closeModal();
+        });
+      }
 
       // Cash buttons
       document.querySelectorAll('.btn-admin-cash').forEach(btn => {
@@ -1674,28 +1721,46 @@ export class GameUI {
 
   // 7. Settings & Controls Guide Modal
   openSettingsModal() {
+    const isAdminEnabled = !!(gameState.admin && gameState.admin.enabled);
+
     const html = `
       <div class="modal-header flex items-center justify-between pb-3 border-b border-slate-700">
         <div class="flex items-center gap-2">
           <span class="text-2xl">⚙️</span>
-          <h2 class="text-xl font-black text-white uppercase tracking-wide">Settings & Controls Guide</h2>
+          <h2 class="text-xl font-black text-white uppercase tracking-wide">Game Settings & Controls</h2>
         </div>
         <button id="modal-close-btn" class="text-slate-400 hover:text-white text-xl p-1 font-mono">✕</button>
       </div>
 
       <div class="modal-body py-4 flex flex-col gap-4 max-h-[65vh] overflow-y-auto pr-1">
+        <!-- Admin Mode Toggle Option -->
+        <div class="p-4 rounded-xl bg-gradient-to-r from-amber-950/40 via-purple-950/40 to-slate-900 border border-amber-500/50 flex items-center justify-between shadow-lg">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="text-lg">👑</span>
+              <h3 class="font-black text-sm text-amber-300 uppercase tracking-wide">Admin Mode & Cheats</h3>
+            </div>
+            <p class="text-xs text-slate-300 mt-0.5">Toggle Admin Crown, Godmode, Flight (F), and Admin Console ON or OFF.</p>
+          </div>
+          <button id="btn-toggle-admin-mode" class="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider cursor-pointer transition-all ${
+            isAdminEnabled ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-500/30' : 'bg-slate-700 hover:bg-slate-600 text-slate-300'
+          }">
+            ${isAdminEnabled ? '👑 ADMIN: ON' : 'ADMIN: OFF'}
+          </button>
+        </div>
+
         <!-- Audio Toggles -->
         <div class="p-4 rounded-xl bg-slate-800 border border-slate-700 flex flex-col gap-3">
           <h3 class="font-bold text-sm text-white uppercase tracking-wide">Audio Controls</h3>
           <div class="flex items-center justify-between">
             <span class="text-sm text-slate-300 font-semibold">Sound Effects (SFX)</span>
-            <button id="btn-toggle-sfx" class="px-4 py-1.5 rounded-lg text-xs font-bold ${soundEngine.sfxMuted ? 'bg-red-600 text-white' : 'bg-emerald-600 text-white'}">
+            <button id="btn-toggle-sfx" class="px-4 py-1.5 rounded-lg text-xs font-bold cursor-pointer ${soundEngine.sfxMuted ? 'bg-red-600 text-white' : 'bg-emerald-600 text-white'}">
               ${soundEngine.sfxMuted ? 'MUTED' : 'ENABLED'}
             </button>
           </div>
           <div class="flex items-center justify-between">
             <span class="text-sm text-slate-300 font-semibold">Aviation Synth Music (BGM)</span>
-            <button id="btn-toggle-bgm" class="px-4 py-1.5 rounded-lg text-xs font-bold ${soundEngine.bgmMuted ? 'bg-red-600 text-white' : 'bg-emerald-600 text-white'}">
+            <button id="btn-toggle-bgm" class="px-4 py-1.5 rounded-lg text-xs font-bold cursor-pointer ${soundEngine.bgmMuted ? 'bg-red-600 text-white' : 'bg-emerald-600 text-white'}">
               ${soundEngine.bgmMuted ? 'MUTED' : 'PLAYING'}
             </button>
           </div>
@@ -1708,21 +1773,25 @@ export class GameUI {
             <div class="p-2 rounded bg-slate-900"><b class="text-sky-400">WASD / Arrows:</b> Move Pilot</div>
             <div class="p-2 rounded bg-slate-900"><b class="text-sky-400">Spacebar:</b> Jump / Climb</div>
             <div class="p-2 rounded bg-slate-900"><b class="text-sky-400">Shift / Q / E:</b> Turbo Jet Dash</div>
-            <div class="p-2 rounded bg-slate-900"><b class="text-sky-400">Mouse Drag:</b> Orbit Camera</div>
-            <div class="p-2 rounded bg-slate-900"><b class="text-sky-400">Mouse Scroll:</b> Zoom In / Out</div>
-            <div class="p-2 rounded bg-slate-900"><b class="text-sky-400">Touch Controls:</b> Virtual Joystick</div>
+            <div class="p-2 rounded bg-slate-900"><b class="text-sky-400">C Key:</b> Cycle Camera Views</div>
+            <div class="p-2 rounded bg-slate-900"><b class="text-sky-400">F Key:</b> Admin Flight (if enabled)</div>
+            <div class="p-2 rounded bg-slate-900"><b class="text-sky-400">~ / \` Key:</b> Open Admin Console</div>
           </div>
         </div>
 
-        <!-- Reset Data -->
-        <div class="p-4 rounded-xl bg-red-950/40 border border-red-900 flex items-center justify-between">
-          <div>
-            <h4 class="font-bold text-red-300 text-sm">Reset Game Data</h4>
-            <p class="text-xs text-slate-400">Clear all cash, rebirths, and collected planes.</p>
+        <!-- FULL FACTORY RESET OPTION -->
+        <div class="p-4 rounded-xl bg-red-950/60 border border-red-800 flex flex-col gap-2 shadow-lg">
+          <div class="flex items-center justify-between">
+            <div>
+              <h4 class="font-black text-red-300 text-sm flex items-center gap-1.5">
+                <span>🔴</span> FULL FACTORY HARD RESET
+              </h4>
+              <p class="text-xs text-slate-300 mt-0.5">Completely wipes ALL cash, 20 rebirth ranks, speed upgrades, hangar planes, and resets to day 1.</p>
+            </div>
+            <button id="btn-full-factory-reset" class="px-4 py-2.5 rounded-xl bg-red-700 hover:bg-red-600 active:scale-95 text-white font-black text-xs uppercase tracking-wider cursor-pointer shadow-lg shadow-red-700/40">
+              WIPE EVERYTHING
+            </button>
           </div>
-          <button id="btn-reset-data" class="px-4 py-2 rounded-xl bg-red-700 hover:bg-red-600 text-white text-xs font-bold uppercase tracking-wider cursor-pointer">
-            Reset All
-          </button>
         </div>
       </div>
     `;
@@ -1731,6 +1800,18 @@ export class GameUI {
 
     document.getElementById('modal-close-btn').addEventListener('click', () => this.closeModal());
 
+    // Toggle Admin Mode
+    const btnAdminToggle = document.getElementById('btn-toggle-admin-mode');
+    if (btnAdminToggle) {
+      btnAdminToggle.addEventListener('click', () => {
+        const active = gameState.toggleAdminEnabled();
+        soundEngine.playClick();
+        this.showToast(active ? '👑 Admin Mode ENABLED!' : '🚫 Admin Mode DISABLED (Legit Play)!', active ? 'success' : 'info');
+        this.closeModal();
+      });
+    }
+
+    // Audio SFX / BGM
     const btnSfx = document.getElementById('btn-toggle-sfx');
     btnSfx.addEventListener('click', () => {
       const active = soundEngine.toggleSfx();
@@ -1745,11 +1826,13 @@ export class GameUI {
       btnBgm.className = `px-4 py-1.5 rounded-lg text-xs font-bold ${active ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white'}`;
     });
 
-    const btnReset = document.getElementById('btn-reset-data');
+    // FULL FACTORY HARD RESET
+    const btnReset = document.getElementById('btn-full-factory-reset');
     btnReset.addEventListener('click', () => {
-      if (confirm('Are you sure you want to reset all game data? This cannot be undone!')) {
+      if (confirm('⚠️ WARNING: Are you 100% sure you want to COMPLETELY RESET ALL DATA? All cash, rebirths, aircraft, and upgrades will be wiped back to zero!')) {
         gameState.resetProgress();
-        this.showToast('Game progress has been reset!', 'info');
+        soundEngine.playSplash();
+        this.showToast('💥 COMPLETE FACTORY RESET! All progress wiped clean!', 'info');
         this.closeModal();
       }
     });

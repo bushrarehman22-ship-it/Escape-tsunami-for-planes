@@ -40,6 +40,7 @@ class GameState {
       highGraphics: true
     };
     this.admin = {
+      enabled: true, // Toggle Admin Mode ON / OFF
       isAdmin: true,
       role: 'Owner / Creator Admin',
       godmode: true, // Godmode active for Admin
@@ -182,7 +183,7 @@ class GameState {
   }
 
   getPlayerSpeed() {
-    if (this.admin && this.admin.superSpeed) return 85.0;
+    if (this.admin && this.admin.enabled && this.admin.superSpeed) return 85.0;
     const baseSpeed = this.getUpgradeValue('speed');
     const speedShopBonus = (this.getSpeedUpgradeValue('sprintVelocity') - 14);
     const rebirthBonus = this.getRebirthTier().bonusSpeed || 0;
@@ -233,19 +234,35 @@ class GameState {
     this.notify();
   }
 
+  // Admin Mode Toggle
+  toggleAdminEnabled() {
+    this.admin.enabled = !this.admin.enabled;
+    if (!this.admin.enabled) {
+      this.admin.godmode = false;
+      this.admin.superSpeed = false;
+      this.admin.flyMode = false;
+    }
+    this.save();
+    this.notify();
+    return this.admin.enabled;
+  }
+
   adminToggleFlyMode() {
+    if (!this.admin.enabled) return false;
     this.admin.flyMode = !this.admin.flyMode;
     this.notify();
     return this.admin.flyMode;
   }
 
   adminToggleGodmode() {
+    if (!this.admin.enabled) return false;
     this.admin.godmode = !this.admin.godmode;
     this.notify();
     return this.admin.godmode;
   }
 
   adminToggleSuperSpeed() {
+    if (!this.admin.enabled) return false;
     this.admin.superSpeed = !this.admin.superSpeed;
     this.notify();
     return this.admin.superSpeed;
@@ -508,9 +525,23 @@ class GameState {
       dashBoost: 1,
       waveRadar: 1
     };
+    this.speedUpgrades = {
+      sprintVelocity: 1,
+      dashCooldown: 1,
+      multiJump: 1,
+      trailParticle: 1
+    };
     this.hangarPlanes = [];
     this.carriedPlanes = [];
     this.unlockedPlaneIds = new Set(['paper_plane']);
+    this.stats = {
+      totalMoneyEarned: 0,
+      totalPlanesRescued: 0,
+      tsunamisEscaped: 0,
+      maxDistanceReached: 0,
+      timesWipedOut: 0,
+      rebirthCount: 0
+    };
     const starter = PLANES_DATABASE.find(p => p.id === 'paper_plane');
     if (starter) {
       this.hangarPlanes.push({ ...starter, level: 1, golden: false });
