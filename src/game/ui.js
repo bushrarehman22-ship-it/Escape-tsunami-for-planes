@@ -4,7 +4,11 @@ import {
   ZONES,
   REBIRTH_TIERS,
   UPGRADES,
+  SPEED_UPGRADES,
   AIRDROP_CRATES,
+  PETS_DATABASE,
+  AVATARS_DATABASE,
+  TSUNAMI_TYPES,
   RARITIES
 } from './constants.js';
 import { gameState } from './state.js';
@@ -528,6 +532,19 @@ export class GameUI {
     }
   }
 
+  formatCompactMoney(value) {
+    const amount = Math.floor(Number(value) || 0);
+    const abs = Math.abs(amount);
+    if (abs >= 1e24) return '$∞';
+    if (abs >= 1e18) return `$${(amount / 1e18).toFixed(abs >= 1e20 ? 0 : 1)}Qi`;
+    if (abs >= 1e15) return `$${(amount / 1e15).toFixed(abs >= 1e17 ? 0 : 1)}Qa`;
+    if (abs >= 1_000_000_000_000) return `$${(amount / 1_000_000_000_000).toFixed(abs >= 10_000_000_000_000 ? 0 : 1)}T`;
+    if (abs >= 1_000_000_000) return `$${(amount / 1_000_000_000).toFixed(abs >= 10_000_000_000 ? 0 : 1)}B`;
+    if (abs >= 1_000_000) return `$${(amount / 1_000_000).toFixed(abs >= 10_000_000 ? 0 : 1)}M`;
+    if (abs >= 1_000) return `$${(amount / 1_000).toFixed(abs >= 10_000 ? 0 : 1)}K`;
+    return `$${amount.toLocaleString()}`;
+  }
+
   // Toast Notification
   showToast(message, type = 'info') {
     const container = document.getElementById('toast-container');
@@ -550,13 +567,13 @@ export class GameUI {
   // Update HUD every tick
   updateHUD(tickData) {
     // 1. Money & Income & Vault Cash
-    document.getElementById('hud-money').textContent = `$${Math.floor(gameState.money).toLocaleString()}`;
+    document.getElementById('hud-money').textContent = this.formatCompactMoney(gameState.money);
     const incPerSec = gameState.getTotalIncomePerSecond();
-    document.getElementById('hud-income').textContent = `+$${incPerSec.toLocaleString()}/s`;
+    document.getElementById('hud-income').textContent = `+${this.formatCompactMoney(incPerSec)}/s`;
     const vaultCash = Math.floor(gameState.uncollectedVaultCash);
     const vaultEl = document.getElementById('hud-vault-cash');
     if (vaultEl) {
-      vaultEl.textContent = `$${vaultCash.toLocaleString()} Ready`;
+      vaultEl.textContent = `${this.formatCompactMoney(vaultCash)} Ready`;
     }
 
     // 2. Rebirth
@@ -603,11 +620,8 @@ export class GameUI {
 
     const adminMenuBtn = document.getElementById('btn-menu-admin');
     if (adminMenuBtn) {
-      if (isAdminOn) {
-        adminMenuBtn.classList.remove('hidden');
-      } else {
-        adminMenuBtn.classList.add('hidden');
-      }
+      // Always keep the Admin console reachable for the owner, even after a reset.
+      adminMenuBtn.classList.remove('hidden');
     }
 
     const adminQuickBar = document.querySelector('.admin-quick-bar');
@@ -2043,6 +2057,20 @@ export class GameUI {
           </button>
         </div>
 
+        <!-- Owner Boost / Reset Controls -->
+        <div class="p-4 rounded-xl bg-gradient-to-r from-purple-950/60 via-sky-950/40 to-slate-900 border border-purple-500/50 flex items-center justify-between shadow-lg">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="text-lg">🌟</span>
+              <h3 class="font-black text-sm text-purple-300 uppercase tracking-wide">Owner Boost Loadout</h3>
+            </div>
+            <p class="text-xs text-slate-300 mt-0.5">Instantly restore $∞, Cosmic Void outfit, Celestial Star pet, max upgrades, and every hangar pad filled with Golden Celestial Galaxy Carriers.</p>
+          </div>
+          <button id="btn-claim-owner-boost" class="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-sky-500 hover:from-purple-500 hover:to-sky-400 text-white text-xs font-black uppercase tracking-wider cursor-pointer shadow-lg">
+            CLAIM BEST PLANES
+          </button>
+        </div>
+
         <!-- Audio Toggles -->
         <div class="p-4 rounded-xl bg-slate-800 border border-slate-700 flex flex-col gap-3">
           <h3 class="font-bold text-sm text-white uppercase tracking-wide">Audio Controls</h3>
@@ -2105,6 +2133,19 @@ export class GameUI {
       });
     }
 
+    // Owner Boost / Best Planes
+    const btnBoost = document.getElementById('btn-claim-owner-boost');
+    if (btnBoost) {
+      btnBoost.addEventListener('click', () => {
+        gameState.adminGrantOwnerBoost();
+        this.engine.rebuildPlayerAvatar();
+        soundEngine.playRebirth();
+        confetti({ particleCount: 140, spread: 90 });
+        this.showToast('🌟 Owner Boost restored: $∞, best outfit, best pet, and all Golden Galaxy Carriers!', 'success');
+        this.closeModal();
+      });
+    }
+
     // Audio SFX / BGM
     const btnSfx = document.getElementById('btn-toggle-sfx');
     btnSfx.addEventListener('click', () => {
@@ -2125,8 +2166,10 @@ export class GameUI {
     btnReset.addEventListener('click', () => {
       if (confirm('⚠️ WARNING: Are you 100% sure you want to COMPLETELY RESET ALL DATA? All cash, rebirths, aircraft, and upgrades will be wiped back to zero!')) {
         gameState.resetProgress();
+        this.engine.rebuildPlayerAvatar();
+        this.engine.respawnAtBase();
         soundEngine.playSplash();
-        this.showToast('💥 COMPLETE FACTORY RESET! All progress wiped clean!', 'info');
+        this.showToast('💥 COMPLETE FACTORY RESET! Progress wiped, but Admin Commands stayed available. Claim Best Planes anytime in Settings.', 'info');
         this.closeModal();
       }
     });

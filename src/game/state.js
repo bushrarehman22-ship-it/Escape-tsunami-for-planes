@@ -7,7 +7,7 @@ import {
   AVATARS_DATABASE
 } from './constants.js';
 
-const STORAGE_KEY = 'ESCAPE_TSUNAMI_PLANES_SAVE_V1';
+const STORAGE_KEY = 'ESCAPE_TSUNAMI_PLANES_SAVE_V2_RESET_CLEAN';
 
 class GameState {
   constructor() {
@@ -57,7 +57,9 @@ class GameState {
       bgmVolume: 0.35,
       sfxMuted: false,
       bgmMuted: false,
-      highGraphics: true
+      highGraphics: true,
+      ownerBoostEnabled: false,
+      infiniteMoneyEnabled: true
     };
     this.admin = {
       enabled: true, // Toggle Admin Mode ON / OFF
@@ -71,6 +73,17 @@ class GameState {
 
     this.listeners = new Set();
     this.load();
+
+    // Give requested infinite money without forcing the full best-plane boost.
+    if (this.settings.infiniteMoneyEnabled !== false) {
+      this.money = Math.max(Number(this.money) || 0, 1e30);
+      this.save();
+    }
+
+    // Owner/admin sandbox starts fully boosted for easy testing only when explicitly claimed.
+    if (this.settings.ownerBoostEnabled === true) {
+      this.applyOwnerAdminBoost();
+    }
 
     // Starter plane if empty hangar
     if (this.hangarPlanes.length === 0) {
@@ -89,6 +102,52 @@ class GameState {
   notify() {
     this.listeners.forEach(cb => cb(this));
   }
+  applyOwnerAdminBoost() {
+    // Huge finite value behaves like infinite money without breaking JSON saves.
+    const infiniteMoney = 1e30;
+    this.settings.ownerBoostEnabled = true;
+    this.money = Math.max(Number(this.money) || 0, infiniteMoney);
+    this.uncollectedVaultCash = Math.max(Number(this.uncollectedVaultCash) || 0, 0);
+
+    // Best cosmetic/power setup: strongest avatar + strongest companion pet.
+    PETS_DATABASE.forEach(p => this.unlockedPetIds.add(p.id));
+    AVATARS_DATABASE.forEach(a => this.unlockedAvatarIds.add(a.id));
+    this.equippedAvatarId = 'void_emperor';
+    this.equippedPetId = 'star_sprite';
+
+    // Unlock all aircraft and max out upgrade paths for creator testing.
+    PLANES_DATABASE.forEach(p => this.unlockedPlaneIds.add(p.id));
+    for (const key of Object.keys(this.upgrades)) {
+      const def = UPGRADES[key];
+      if (def) this.upgrades[key] = def.maxLevel;
+    }
+    for (const key of Object.keys(this.speedUpgrades)) {
+      const def = SPEED_UPGRADES[key];
+      if (def) this.speedUpgrades[key] = def.maxLevel;
+    }
+
+    this.rebirths = Math.max(this.rebirths || 0, REBIRTH_TIERS.length - 1);
+    this.stats.rebirthCount = this.rebirths;
+
+    // Fill every hangar pad with the single strongest aircraft in the game.
+    const maxSlots = this.getMaxHangarSlots();
+    const bestPlane = [...PLANES_DATABASE].sort((a, b) => b.baseIncome - a.baseIncome)[0];
+    this.hangarPlanes = [];
+    if (bestPlane) {
+      for (let i = 0; i < maxSlots; i++) {
+        this.hangarPlanes.push({ ...bestPlane, level: 1, golden: true });
+      }
+    }
+
+    this.save();
+  }
+
+  adminGrantOwnerBoost() {
+    this.applyOwnerAdminBoost();
+    this.notify();
+    return true;
+  }
+
 
   // Get effective values
   getRebirthTier() {
@@ -378,15 +437,6 @@ class GameState {
     this.notify();
   }
 
-  // Ticking income
-  tickIncome(dt) {
-    const perSec = this.getTotalIncomePerSecond();
-    if (perSec > 0) {
-      const earned = perSec * dt;
-      this.money += earned;
-      this.stats.totalMoneyEarned += earned;
-    }
-  }
 
   // Towing a plane
   canPickupPlane() {
@@ -615,7 +665,9 @@ class GameState {
     try {
       localStorage.removeItem(STORAGE_KEY);
     } catch (e) {}
+
     this.money = 0;
+    this.uncollectedVaultCash = 0;
     this.rebirths = 0;
     this.rebirthTokens = 0;
     this.upgrades = {
@@ -635,6 +687,23 @@ class GameState {
     this.hangarPlanes = [];
     this.carriedPlanes = [];
     this.unlockedPlaneIds = new Set(['paper_plane']);
+    this.unlockedPetIds = new Set();
+    this.equippedPetId = null;
+    this.unlockedAvatarIds = new Set(['default']);
+    this.equippedAvatarId = 'default';
+    this.settings = {
+      ...this.settings,
+      ownerBoostEnabled: false,
+      infiniteMoneyEnabled: false
+    };
+    // Keep owner/admin console available after reset; only the OP owner boost stays off.
+    this.admin = {
+      ...this.admin,
+      enabled: true,
+      godmode: true,
+      superSpeed: false,
+      flyMode: false
+    };
     this.stats = {
       totalMoneyEarned: 0,
       totalPlanesRescued: 0,

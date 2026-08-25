@@ -42,7 +42,7 @@ export class GameEngine {
     this.cameraMode = 'player'; // 'player' | 'fpp' | 'tsunami' | 'drone' | 'tower'
     this.cameraDistance = 15; // Panned out default
     this.cameraYaw = 0; // Horizontal rotation
-    this.cameraPitch = 0.38; // Vertical angle
+    this.cameraPitch = 0.38; // Vertical orbit angle; drag freely for 360° horizontal camera
     this.isDraggingMouse = false;
     this.lastMousePos = { x: 0, y: 0 };
     this.cameraShake = 0;
@@ -90,8 +90,9 @@ export class GameEngine {
   init() {
     // 1. Scene & Fog
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color('#0f172a');
-    this.scene.fog = new THREE.FogExp2('#0f172a', 0.008);
+    // Bright daytime sky for clearer runway/shop visibility
+    this.scene.background = new THREE.Color('#7dd3fc');
+    this.scene.fog = new THREE.FogExp2('#bae6fd', 0.0045);
 
     // 2. Camera - Wider Field of view (72) for epic runway visibility
     const width = this.container.clientWidth || window.innerWidth;
@@ -109,11 +110,11 @@ export class GameEngine {
     this.container.appendChild(this.renderer.domElement);
 
     // 4. Lights
-    const ambientLight = new THREE.AmbientLight('#94a3b8', 1.0);
+    const ambientLight = new THREE.AmbientLight('#ffffff', 1.35);
     this.scene.add(ambientLight);
 
-    const sunLight = new THREE.DirectionalLight('#ffffff', 1.8);
-    sunLight.position.set(40, 80, -30);
+    const sunLight = new THREE.DirectionalLight('#fff7d6', 2.25);
+    sunLight.position.set(55, 95, -45);
     sunLight.castShadow = true;
     sunLight.shadow.mapSize.width = 2048;
     sunLight.shadow.mapSize.height = 2048;
@@ -127,7 +128,7 @@ export class GameEngine {
     this.sunLight = sunLight;
 
     // Runway floodlights
-    const baseLight = new THREE.PointLight('#38bdf8', 2.0, 60);
+    const baseLight = new THREE.PointLight('#ffffff', 1.2, 80);
     baseLight.position.set(0, 15, -20);
     this.scene.add(baseLight);
 
@@ -325,14 +326,57 @@ export class GameEngine {
     spawnPoints.forEach(pt => {
       this.spawnPlaneAtLocation(pt.x, pt.z);
     });
+
+    // Extra rare/showcase aircraft so players spot exciting finds more often.
+    const rareShowcaseSpawns = [
+      { z: 170, x: 0, id: 'cessna_172' },
+      { z: 430, x: 8, id: 'p51_mustang' },
+      { z: 820, x: -8, id: 'concorde' },
+      { z: 1340, x: 0, id: 'sr71_blackbird' },
+      { z: 1880, x: -8, id: 'darkstar_scramjet' },
+      { z: 1980, x: 8, id: 'an225_mriya' },
+      { z: 2180, x: -9, id: 'plasma_ufo' },
+      { z: 2360, x: 9, id: 'golden_concorde' },
+      { z: 2520, x: -8, id: 'quantum_fighter' },
+      { z: 2650, x: 8, id: 'galaxy_dreadnought' }
+    ];
+
+    rareShowcaseSpawns.forEach(pt => {
+      this.spawnPlaneAtLocation(pt.x, pt.z, pt.id);
+    });
   }
 
-  spawnPlaneAtLocation(x, z) {
+  choosePlaneForZone(zone, rareBias = true) {
+    const planeDefs = zone.planeIds
+      .map(id => PLANES_DATABASE.find(p => p.id === id))
+      .filter(Boolean)
+      .sort((a, b) => a.baseIncome - b.baseIncome);
+
+    if (planeDefs.length === 0) return null;
+
+    // Favor rare/high-income aircraft so the runway feels more exciting.
+    // Lowest tier still appears, but top-tier zone planes now spawn much more often.
+    const weights = planeDefs.map((plane, idx) => {
+      const rarityBoost = Math.max(1, Math.sqrt(plane.rarity?.multiplier || 1));
+      const tierBoost = Math.pow(idx + 1, rareBias ? 1.85 : 1.15);
+      return tierBoost * rarityBoost;
+    });
+
+    const totalWeight = weights.reduce((sum, w) => sum + w, 0);
+    let roll = Math.random() * totalWeight;
+    for (let i = 0; i < planeDefs.length; i++) {
+      roll -= weights[i];
+      if (roll <= 0) return planeDefs[i];
+    }
+    return planeDefs[planeDefs.length - 1];
+  }
+
+  spawnPlaneAtLocation(x, z, forcedPlaneId = null) {
     // Determine zone from Z
     const zone = ZONES.find(zDef => z >= zDef.minDist && z < zDef.maxDist) || ZONES[ZONES.length - 1];
-    const availablePlaneIds = zone.planeIds;
-    const planeId = availablePlaneIds[Math.floor(Math.random() * availablePlaneIds.length)];
-    const planeDef = PLANES_DATABASE.find(p => p.id === planeId);
+    const planeDef = forcedPlaneId
+      ? PLANES_DATABASE.find(p => p.id === forcedPlaneId)
+      : this.choosePlaneForZone(zone, true);
     if (!planeDef) return;
 
     const mesh = createPlaneMesh(planeDef);
@@ -492,7 +536,7 @@ export class GameEngine {
       const dx = e.clientX - this.lastMousePos.x;
       const dy = e.clientY - this.lastMousePos.y;
       this.cameraYaw -= dx * 0.005;
-      this.cameraPitch = Math.max(0.1, Math.min(1.2, this.cameraPitch + dy * 0.004));
+      this.cameraPitch = Math.max(-0.45, Math.min(1.35, this.cameraPitch + dy * 0.004));
       this.lastMousePos = { x: e.clientX, y: e.clientY };
     });
 
@@ -514,6 +558,36 @@ export class GameEngine {
         this.cameraDistance = Math.max(0.5, Math.min(45, newDist));
       }
     }, { passive: false });
+
+    // Touch swipe camera orbit on the 3D canvas (mobile/tablet 360° look).
+    let cameraTouchId = null;
+    dom.addEventListener('touchstart', (e) => {
+      if (e.touches.length !== 1) return;
+      const touch = e.touches[0];
+      cameraTouchId = touch.identifier;
+      this.isDraggingMouse = true;
+      this.lastMousePos = { x: touch.clientX, y: touch.clientY };
+      soundEngine.resume();
+    }, { passive: true });
+
+    dom.addEventListener('touchmove', (e) => {
+      if (!this.isDraggingMouse || cameraTouchId === null) return;
+      const touch = Array.from(e.touches).find(t => t.identifier === cameraTouchId);
+      if (!touch) return;
+      e.preventDefault();
+      const dx = touch.clientX - this.lastMousePos.x;
+      const dy = touch.clientY - this.lastMousePos.y;
+      this.cameraYaw -= dx * 0.006;
+      this.cameraPitch = Math.max(-0.45, Math.min(1.35, this.cameraPitch + dy * 0.0045));
+      this.lastMousePos = { x: touch.clientX, y: touch.clientY };
+    }, { passive: false });
+
+    const endCameraTouch = () => {
+      cameraTouchId = null;
+      this.isDraggingMouse = false;
+    };
+    dom.addEventListener('touchend', endCameraTouch);
+    dom.addEventListener('touchcancel', endCameraTouch);
 
     // Resize
     window.addEventListener('resize', () => {
@@ -717,9 +791,9 @@ export class GameEngine {
     const zone = ZONES.find(zDef => currentZ >= zDef.minDist && currentZ < zDef.maxDist) || ZONES[ZONES.length - 1];
     if (zone && zone.id !== this.currentZone.id) {
       this.currentZone = zone;
-      // Change fog & background colors smoothly
+      // Keep a bright daytime sky while tinting fog slightly per zone
       this.scene.fog.color.set(zone.fogColor);
-      this.scene.background.set(zone.fogColor);
+      this.scene.background.set('#7dd3fc');
       if (this.uiCallbacks.onZoneChange) {
         this.uiCallbacks.onZoneChange(zone);
       }
