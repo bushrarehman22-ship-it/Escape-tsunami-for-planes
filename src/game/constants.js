@@ -21,7 +21,7 @@ export const ZONES = [
     color: '#10b981',
     groundColor: '#1e293b',
     tarmacColor: '#334155',
-    fogColor: '#0f172a',
+    fogColor: '#bae6fd',
     planeIds: ['paper_plane', 'piper_cub', 'crop_duster', 'cessna_172']
   },
   {
@@ -32,7 +32,7 @@ export const ZONES = [
     color: '#3b82f6',
     groundColor: '#1e293b',
     tarmacColor: '#2d3748',
-    fogColor: '#111827',
+    fogColor: '#bfdbfe',
     planeIds: ['spitfire', 'red_baron', 'seaplane', 'p51_mustang']
   },
   {
@@ -43,7 +43,7 @@ export const ZONES = [
     color: '#8b5cf6',
     groundColor: '#18181b',
     tarmacColor: '#27272a',
-    fogColor: '#09090b',
+    fogColor: '#ddd6fe',
     planeIds: ['boeing_737', 'a380_superjumbo', 'concorde', 'beluga_cargo']
   },
   {
@@ -54,7 +54,7 @@ export const ZONES = [
     color: '#ec4899',
     groundColor: '#0f172a',
     tarmacColor: '#1e293b',
-    fogColor: '#020617',
+    fogColor: '#fbcfe8',
     planeIds: ['f22_raptor', 'a10_warthog', 'b2_stealth', 'sr71_blackbird']
   },
   {
@@ -65,7 +65,7 @@ export const ZONES = [
     color: '#f97316',
     groundColor: '#1c1917',
     tarmacColor: '#292524',
-    fogColor: '#0c0a09',
+    fogColor: '#fed7aa',
     planeIds: ['x15_rocket', 'space_shuttle', 'darkstar_scramjet', 'an225_mriya']
   },
   {
@@ -76,7 +76,7 @@ export const ZONES = [
     color: '#06b6d4',
     groundColor: '#172554',
     tarmacColor: '#1e1b4b',
-    fogColor: '#030712',
+    fogColor: '#cffafe',
     planeIds: ['plasma_ufo', 'golden_concorde', 'quantum_fighter', 'galaxy_dreadnought']
   }
 ];

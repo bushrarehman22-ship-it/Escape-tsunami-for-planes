@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { RARITIES } from './constants.js';
+import { RARITIES, AVATARS_DATABASE } from './constants.js';
 
 // Material Cache for high performance
 const materialCache = new Map();
@@ -1232,6 +1232,7 @@ export function createAirportBase(maxSlots = 36) {
   }
 
   baseGroup.userData = {
+    ...baseGroup.userData,
     hangarPads,
     dropZonePosition: new THREE.Vector3(0, 0, 0),
     dropZoneRadius: 6.5,
